@@ -159,7 +159,7 @@
 
   // ---------------------------------------------------------------- background + ambience
   function drawBg(key, plain) {
-    img("bg_" + key, 0, H - 640);
+    img("bg_" + key, 0, H - 640, 252, 640); // painted at 180x457, shown larger for chunky pixels
     if (plain) return;
     // drifting butterflies
     for (const f of st.flies) {
@@ -1215,7 +1215,7 @@
       ctx.fillStyle = "rgba(189,224,248,0.4)"; ctx.fill(); ctx.strokeStyle = "#bde0f8"; ctx.lineWidth = 2; ctx.stroke();
       img("i_breath", x + w - 62, y + h / 2 - 7);
     } else if (page === 7) {
-      ctx.drawImage(IMG.bg_alpine, 0, 150, 252, Math.round(252 * h / w), x, y, w, h);
+      ctx.drawImage(IMG.bg_alpine, 0, 150, 180, Math.round(180 * h / w), x, y, w, h);
       for (let i = 0; i < 4; i++) img(i < 2 ? "sign_done" : i === 2 ? "sign_current" : "sign_locked", x + 16 + i * 44, y + h - 30 - i * 18);
       img("flag", x + w - 34, y + 8);
       const hx = x + 16 + ((T * 20) % 130), hy = y + h - 40 - ((T * 20) % 130) * 0.4;

@@ -477,7 +477,7 @@ def camp_scene():
 
 def app_icon(size=512):
     """App icon: a lush cosmos tile in front of the meadow mountains."""
-    bg = Image.fromarray(scene.render("meadow", 300)).crop((96, 236, 160, 300)).convert("RGBA")
+    bg = Image.fromarray(scene.render("meadow", 300)).crop((58, 168, 122, 232)).convert("RGBA")
     t = S2.plant_tile("cosmos", 2).image()
     bg.alpha_composite(t, (5, 8))
     return bg.resize((size, size), Image.NEAREST)
