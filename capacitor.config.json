@@ -1,0 +1,9 @@
+{
+  "appId": "com.gruwebdesign.petalpeaks",
+  "appName": "Petal Peaks",
+  "webDir": "www",
+  "backgroundColor": "#2e2030",
+  "android": {
+    "backgroundColor": "#2e2030"
+  }
+}

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#2e2030">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="A cozy pixel art block puzzle: place pieces, fill rows to make flowers bloom, and climb an endless mountain trail.">
+  <title>Petal Peaks</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preload" href="fonts/jersey10-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face {
+      font-family: "Jersey 10"; font-weight: 400; font-display: block;
+      src: url("fonts/jersey10-latin.woff2") format("woff2");
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2190-2199, U+2212, U+2605;
+    }
+    @font-face {
+      font-family: "Jersey 10"; font-weight: 400; font-display: block;
+      src: url("fonts/jersey10-latin-ext.woff2") format("woff2");
+      unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+    }
+    html, body {
+      margin: 0; height: 100%; width: 100%;
+      background: #2e2030; overflow: hidden;
+      touch-action: none; overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    #safe-top { position: fixed; top: 0; left: 0; width: 1px; height: env(safe-area-inset-top, 0px); visibility: hidden; pointer-events: none; }
+    #stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; cursor: pointer; touch-action: none; }
+  </style>
+</head>
+<body>
+  <div id="safe-top"></div>
+  <div id="stage">
+    <canvas id="game" aria-label="Petal Peaks. Drag pieces onto the garden bed; full rows, columns and squares bloom."></canvas>
+  </div>
+  <script src="src/i18n.js"></script>
+  <script src="src/levels.js"></script>
+  <script src="src/audio.js"></script>
+  <script src="src/game.js"></script>
+  <script>
+    try { window.Capacitor && window.Capacitor.Plugins.StatusBar && window.Capacitor.Plugins.StatusBar.hide(); } catch (e) {}
+    if ("serviceWorker" in navigator && location.protocol === "https:" && !/itch\.(io|zone)/.test(location.hostname)) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+  </script>
+</body>
+</html>

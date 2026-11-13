@@ -1,0 +1,18 @@
+{
+  "name": "petal-peaks",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cozy pixel art block puzzle: place pieces, make flowers bloom, climb an endless mountain trail.",
+  "scripts": {
+    "build:web": "node tools/build-web.mjs",
+    "art": "python3 tools/make_art.py",
+    "serve": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0"
+  }
+}
