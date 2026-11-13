@@ -6,7 +6,7 @@
   const L = window.Levels, I18N = window.I18N, A = window.Audio2;
   const W = 252;
   let H = 448;
-  const CELL = 24, MINI = 14;
+  const CELL = 27, MINI = 14, BOARD = CELL * 9;
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
   let K = 1; // backing pixels per logical pixel
@@ -14,7 +14,7 @@
   // ---------------------------------------------------------------- assets
   const IMG = {};
   const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "camp", "flag",
-    "frame", "cell_0", "cell_1", "stone", "stone_cracked", "weed_0", "weed_1", "plastic", "mushroom",
+    "stone", "stone_cracked", "weed_0", "weed_1", "plastic", "mushroom",
     "bee_0", "bee_1", "campfire_0", "campfire_1", "sign_open", "sign_current", "sign_done", "sign_locked"];
   for (const i of ["pause", "play", "sound", "mute", "music", "gear", "home", "retry", "map", "close", "breath", "compost", "rain", "lock", "star", "star_off", "leaf", "check", "flower", "moves", "lang"]) names.push("i_" + i);
   for (let f = 0; f < 4; f++) names.push("hiker_" + f);
@@ -66,21 +66,21 @@
   let TOP = 4, BX = 10, BY = 60, TY = 300, BB = 380;
   function fit() {
     const vw = window.innerWidth, vh = window.innerHeight;
-    H = Math.max(448, Math.min(560, Math.round(W * vh / vw)));
+    H = Math.max(456, Math.min(640, Math.round(W * vh / vw)));
     const s = Math.min(vw / W, vh / H);
     const dpr = window.devicePixelRatio || 1;
-    K = s * dpr >= 2 ? Math.floor(s * dpr) : s * dpr;
+    K = s * dpr; // fill the whole screen; sprites are drawn on whole logical pixels
     canvas.width = Math.round(W * K);
     canvas.height = Math.round(H * K);
     canvas.style.width = (canvas.width / dpr) + "px";
     canvas.style.height = (canvas.height / dpr) + "px";
     const safe = document.getElementById("safe-top");
     TOP = Math.max(4, Math.round((safe ? safe.getBoundingClientRect().height : 0) / s) + 4);
-    const need = TOP + 52 + 232 + 8 + 78 + 34;
+    const need = TOP + 52 + BOARD + 8 + 78 + 34;
     const extra = Math.max(0, H - need);
-    BX = 10;
+    BX = (W - BOARD) / 2;
     BY = TOP + 52 + Math.round(extra * 0.45);
-    TY = BY + 232 + 6 + Math.round(extra * 0.2);
+    TY = BY + BOARD + 6 + Math.round(extra * 0.2);
     BB = TY + 78;
   }
   window.addEventListener("resize", fit);
@@ -109,10 +109,12 @@
     if (cur) lines.push(cur);
     return lines;
   }
+  const HI = /^(p_|m_|stone|weed|plastic|mushroom|hiker|yogi)/; // authored at 2x for extra detail
   function img(name, x, y, w, h) {
     const im = IMG[name];
     if (!im || !im.complete || !im.naturalWidth) return;
-    if (w) ctx.drawImage(im, Math.round(x), Math.round(y), w, h); else ctx.drawImage(im, Math.round(x), Math.round(y));
+    if (!w) { const k = HI.test(name) ? 2 : 1; w = im.naturalWidth / k; h = im.naturalHeight / k; }
+    ctx.drawImage(im, Math.round(x), Math.round(y), w, h);
   }
   // 9-slice: border b px of the source
   function nine(name, x, y, w, h, b) {
@@ -156,8 +158,9 @@
   function iconButton(x, y, icon, on, skin = "btn_wood") { button(x, y, 20, 20, "", on, { icon, skin }); }
 
   // ---------------------------------------------------------------- background + ambience
-  function drawBg(key) {
-    img("bg_" + key, 0, H - 560);
+  function drawBg(key, plain) {
+    img("bg_" + key, 0, H - 640);
+    if (plain) return;
     // drifting butterflies
     for (const f of st.flies) {
       const fr = Math.floor(st.time * 6 + f.ph) % 2;
@@ -290,8 +293,8 @@
     G.score = o.score; G.moves = o.moves === null ? Infinity : o.moves; G.prog = o.prog; G.streak = o.streak; G.compost = o.compost; G.placed = o.placed;
   }
 
-  const cellX = (x) => BX + 8 + x * CELL;
-  const cellY = (y) => BY + 8 + y * CELL;
+  const cellX = (x) => BX + x * CELL;
+  const cellY = (y) => BY + y * CELL;
 
   function place(slot, x, y) {
     const pc = G.tray[slot];
@@ -328,7 +331,7 @@
     for (const k of order) {
       const c = G.board[k];
       const x = k % 9, y = Math.floor(k / 9);
-      const px = cellX(x) + 12, py = cellY(y) + 12;
+      const px = cellX(x) + 13, py = cellY(y) + 13;
       if (c.k === "plant") {
         const sg = stageOf(c);
         pts += [10, 20, 35][sg];
@@ -571,7 +574,7 @@
     const cr = compostRect();
     if (d.type === "user" && cx > cr.x - 6 && cx < cr.x + cr.w + 6 && cy > cr.y - 18 && cy < cr.y + cr.h + 10) return { compost: true };
     const left = cx - pc.p.wd * CELL / 2, top = cy - pc.p.ht * CELL / 2;
-    const x = Math.round((left - BX - 8) / CELL), y = Math.round((top - BY - 8) / CELL);
+    const x = Math.round((left - BX) / CELL), y = Math.round((top - BY) / CELL);
     if (x < -1 || y < -1 || x > 9 || y > 9) return null;
     return { x, y, ok: canPlace(pc, x, y) };
   }
@@ -632,7 +635,7 @@
     text(`${t("zenSub")} · ${t("best")} ${save.zenBest}`, W / 2, by + 92, 7, COL.cream);
     // our heroine strolls across the meadow
     const hx = ((st.time * 14) % (W + 60)) - 30;
-    img("hiker_" + (Math.floor(st.time * 5) % 4), hx, H - 76);
+    img("hiker_" + (Math.floor(st.time * 5) % 4), hx, H - 96, 36, 46);
     // quote of the day
     const q = I18N[save.lang].quotes[Math.floor(Date.now() / 86400000) % 6];
     const lines = wrap(`“${q}”`, 200, 7);
@@ -707,7 +710,7 @@
     const cy = H / 2 - 40;
     img("camp", W / 2 - 110, cy);
     img("campfire_" + (Math.floor(st.time * 6) % 2), W / 2 + 5, cy + 78);
-    img("yogi_" + (Math.floor(st.time / 2) % 2), W / 2 - 110 + 65, cy + 76);
+    img("yogi_" + (Math.floor(st.time / 2) % 2), W / 2 - 110 + 65, cy + 74);
     if (Math.random() < 0.3) st.parts.push({ x: W / 2 + 14, y: cy + 80, vx: (Math.random() - 0.5) * 6, vy: -20 - Math.random() * 20, g: 0, life: 1.2, t: 0, c: Math.random() < 0.5 ? COL.gold : "#f6ab55", s: 1, spark: true });
     text(t("camp"), W / 2, cy - 40, 16, COL.gold);
     text(`${t("summit")} ${G.n} · ${I18N[save.lang].biomes[biome]}`, W / 2, cy - 20, 8, COL.cream);
@@ -762,11 +765,15 @@
     ctx.save();
     ctx.translate(Math.round(ox), Math.round(oy));
     // shadow + frame
-    rect(BX + 3, BY + 5, 232, 232, "rgba(31,22,34,0.35)");
-    nine("frame", BX, BY, 232, 232, 10);
-    for (let y = 0; y < 9; y++) for (let x = 0; x < 9; x++) {
-      const v = (Math.floor(x / 3) + Math.floor(y / 3)) % 2;
-      img("cell_" + v, cellX(x), cellY(y));
+    // see-through bed: the landscape shows through, with a soft tint and a light grid
+    const bx = Math.round(BX), by = Math.round(BY);
+    rect(bx - 2, by - 2, BOARD + 4, BOARD + 4, "rgba(255,250,240,0.55)");
+    rect(bx - 1, by - 1, BOARD + 2, BOARD + 2, "rgba(16,28,22,0.34)");
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) if ((x + y) % 2 === 0) rect(bx + x * CELL * 3, by + y * CELL * 3, CELL * 3, CELL * 3, "rgba(255,250,240,0.06)");
+    for (let i = 1; i < 9; i++) {
+      const a = i % 3 === 0 ? 0.42 : 0.16;
+      rect(bx + i * CELL, by, 1, BOARD, `rgba(255,250,240,${a})`);
+      rect(bx, by + i * CELL, BOARD, 1, `rgba(255,250,240,${a})`);
     }
     // preview of what the drag would do
     let ghost = null, clears = null;
@@ -821,7 +828,7 @@
       const s = 1 + Math.sin(Math.min(1, k * 1.6) * Math.PI) * 0.35;
       ctx.globalAlpha = Math.max(0, 1 - k * k);
       const sz = CELL * s;
-      img(`p_${f.sp}_${f.stage}`, f.x + 12 - sz / 2, f.y + 12 - sz / 2, sz, sz);
+      img(`p_${f.sp}_${f.stage}`, f.x + 13.5 - sz / 2, f.y + 13.5 - sz / 2, sz, sz);
       ctx.globalAlpha = 1;
     }
     ctx.restore();
@@ -953,7 +960,7 @@
     else if (G.tut === 3) { msg = t("tut4"); if (G.tutT > 4) { G.tut = -1; } }
     if (!msg) return;
     const lines = wrap(msg, 190, 8);
-    const y = G.tut === 0 ? TY - 30 : BY - 2 + 232 - 30;
+    const y = G.tut === 0 ? TY - 30 : BY - 2 + BOARD - 30;
     nine("panel", W / 2 - 105, y - 4, 210, 12 + lines.length * 10, 10);
     lines.forEach((l, i) => text(l, W / 2, y + 6 + i * 10, 8, COL.brown, "center", null));
     // animated hand hint from tray to board
@@ -990,7 +997,7 @@
       if (G.overT < 1) return;
       if (!G.finished) { G.finished = true; finishWin(); G.starT = 0; }
       G.starT += dt;
-      overlayPanel(t("win"), t("winSub"), 180);
+      overlayPanel(t("win"), t("winSub"), 156);
       const cy = H / 2 - 30;
       for (let i = 0; i < 3; i++) {
         const on = i < G.stars && G.starT > 0.3 + i * 0.35;
@@ -1120,7 +1127,7 @@
   }
 
   // mini board for the help videos: n×m cells at size s
-  function miniCell(x, y, s, v) { img("cell_" + v, x, y, s, s); }
+  function miniCell(x, y, s, v) { rect(x, y, s, s, v ? "#4a8442" : "#5a9a48"); rect(x, y, s, 1, "rgba(255,250,240,0.18)"); rect(x, y, 1, s, "rgba(255,250,240,0.18)"); }
   function helpVideo(page, x, y, w, h, T) {
     rect(x, y, w, h, "#264a30");
     const s = page === 0 ? 16 : 22;
@@ -1208,7 +1215,7 @@
       ctx.fillStyle = "rgba(189,224,248,0.4)"; ctx.fill(); ctx.strokeStyle = "#bde0f8"; ctx.lineWidth = 2; ctx.stroke();
       img("i_breath", x + w - 62, y + h / 2 - 7);
     } else if (page === 7) {
-      img("bg_alpine", x, y, w, 560 * (w / 252));
+      ctx.drawImage(IMG.bg_alpine, 0, 150, 252, Math.round(252 * h / w), x, y, w, h);
       for (let i = 0; i < 4; i++) img(i < 2 ? "sign_done" : i === 2 ? "sign_current" : "sign_locked", x + 16 + i * 44, y + h - 30 - i * 18);
       img("flag", x + w - 34, y + 8);
       const hx = x + 16 + ((T * 20) % 130), hy = y + h - 40 - ((T * 20) % 130) * 0.4;

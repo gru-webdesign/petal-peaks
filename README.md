@@ -1,6 +1,6 @@
 # Petal Peaks
 
-Opuštajuća pixel art slagalica za telefon (uspravno), na srpskom i engleskom. Na leju 9×9 slažeš komade (kao u Tetrisu, ali ništa ne pada), a pun red, kolona ili kvadrat 3×3 procveta. Svaki nivo je markacija na planinskoj stazi, na svakih 10 je vrh sa kampom, a staza nema kraja. Junakinja je planinarka duge kovrdžave kose vezane u rep.
+Opuštajuća pixel art slagalica za telefon (uspravno), na srpskom i engleskom. Na providnu leju 9×9, kroz koju se vidi pejzaž, slažeš komade (kao u Tetrisu, ali ništa ne pada), a pun red, kolona ili kvadrat 3×3 procveta. Svaki nivo je markacija na planinskoj stazi, na svakih 10 je vrh sa kampom, a staza nema kraja. Junakinja je planinarka duge kovrdžave kose vezane u rep.
 
 ## Kako se igra
 
@@ -25,7 +25,7 @@ Na računaru: miš, **H** za uputstvo, **Esc** za pauzu, **U** za duboki udah.
 
 ## Art
 
-Sav art je pixel art nacrtan u kodu: `tools/make_art.py` (uz `tools/pix.py`) pravi sve slike u `assets/`, ikonice u `icons/` i `resources/`. Paleta je topla, u stilu 70-ih.
+Sav art je pixel art nacrtan u kodu: `tools/make_art.py` pravi sve slike (`tools/scene.py` slika pejzaže, `tools/sprites2.py` cveće na travi, prepreke i junakinju u duploj rezoluciji, `tools/pix.py` je zajednički alat) u `assets/`, ikonice u `icons/` i `resources/`. Paleta je topla, u stilu 70-ih.
 
 ```
 python3 tools/make_art.py          # sve
