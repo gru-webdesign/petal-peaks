@@ -53,12 +53,12 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - run: cp android/app/build/outputs/apk/debug/app-debug.apk petal-peaks.apk
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk hike-and-bloom.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: petal-peaks-apk
-          path: petal-peaks.apk
+          name: hike-and-bloom-apk
+          path: hike-and-bloom.apk
 
       - name: Point the "latest" tag at this commit
         run: |
@@ -69,7 +69,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: Petal Peaks (latest build)
-          body: Install petal-peaks.apk on Android (allow installs from your browser when asked).
+          name: Hike & Bloom (latest build)
+          body: Install hike-and-bloom.apk on Android (allow installs from your browser when asked).
           make_latest: true
-          files: petal-peaks.apk
+          files: hike-and-bloom.apk

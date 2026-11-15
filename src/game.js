@@ -1,4 +1,4 @@
-// Petal Peaks — a cozy block puzzle on an endless mountain trail.
+// Hike & Bloom — a cozy block puzzle on an endless mountain trail.
 // Place pieces on a 9×9 garden bed; full rows, columns and 3×3 squares bloom.
 (() => {
   "use strict";
@@ -695,8 +695,8 @@
       img(`m_${sp}_1`, x - 8, y - 8);
     });
     ctx.globalAlpha = 1;
-    text("PETAL", cx, cy - 12 + bob, 30, COL.pink, "center", COL.ink);
-    text("PEAKS", cx, cy + 18 + bob, 30, COL.gold, "center", COL.ink);
+    text("HIKE &", cx, cy - 12 + bob, 30, COL.pink, "center", COL.ink);
+    text("BLOOM", cx, cy + 18 + bob, 30, COL.gold, "center", COL.ink);
     text(t("tagline"), cx, cy + 44, 8, COL.cream);
   }
 

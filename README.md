@@ -1,6 +1,8 @@
-# Petal Peaks
+# Hike & Bloom
 
 Opuštajuća pixel art slagalica za telefon (uspravno), na srpskom i engleskom. Na providnu leju 9×9, kroz koju se vidi pejzaž, slažeš komade (kao u Tetrisu, ali ništa ne pada), a pun red, kolona ili kvadrat 3×3 procveta. Svaki nivo je markacija na planinskoj stazi, na svakih 10 je vrh sa kampom, a staza nema kraja. Junakinja je planinarka duge kovrdžave kose vezane u rep.
+
+Igra se ranije zvala Petal Peaks; repo i ID aplikacije (`com.gruwebdesign.petalpeaks`) su ostali isti, da nova verzija može da se instalira preko stare bez gubljenja napretka.
 
 ## Kako se igra
 
@@ -52,7 +54,7 @@ pa otvori `http://localhost:8000`.
 
 Svaki push na `main` pravi APK preko GitHub Actions i stavlja ga u release `latest`:
 
-`https://github.com/gru-webdesign/petal-peaks/releases/latest/download/petal-peaks.apk`
+`https://github.com/gru-webdesign/petal-peaks/releases/latest/download/hike-and-bloom.apk`
 
 Svi build-ovi su potpisani istim ključem (`tools/android/debug.keystore`), pa nova verzija može da se instalira preko stare bez gubljenja napretka. Za Google Play treba poseban, tajni ključ i AAB umesto APK-a.
 

@@ -1,4 +1,4 @@
-// Petal Peaks — pieces, biomes and the endless level generator.
+// Hike & Bloom — pieces, biomes and the endless level generator.
 // window.Levels = { PIECES, BIOMES, SPECIES, make(n), rng(seed) }
 (() => {
   "use strict";

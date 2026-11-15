@@ -1,4 +1,4 @@
-// Petal Peaks — all sound synthesised live with WebAudio (no audio files).
+// Hike & Bloom — all sound synthesised live with WebAudio (no audio files).
 // Music: slow lo-fi chords (Fmaj7 Em7 Dm7 Cmaj7) with a soft pentatonic melody,
 // vinyl-ish noise and occasional bird chirps. Every bloom plays notes from the same scale,
 // so combos sound like a little melody.

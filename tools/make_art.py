@@ -1,4 +1,4 @@
-"""Petal Peaks: all game art, drawn in code as pixel art.
+"""Hike & Bloom: all game art, drawn in code as pixel art.
 
 Run:  python3 tools/make_art.py      ->  assets/*.png  (+ art/preview/*.png at 6x)
 """

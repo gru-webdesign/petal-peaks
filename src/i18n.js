@@ -1,4 +1,4 @@
-// Petal Peaks — all text in Serbian (Latin) and English.
+// Hike & Bloom — all text in Serbian (Latin) and English.
 // window.I18N[lang][key]; help pages are arrays of { title, what, how, watch }.
 (() => {
   "use strict";
