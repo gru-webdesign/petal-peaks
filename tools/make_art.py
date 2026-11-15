@@ -510,24 +510,14 @@ def camp_scene():
 def app_icon(size=512):
     """App icon: a lush cosmos tile in front of the meadow."""
     bg = Image.open(os.path.join(OUT, "bg_meadow.png")).convert("RGBA").crop((150, 300, 406, 556)).resize((64, 64), Image.BOX)
-    t = S2.plant_tile("cosmos", 2).image()
-    bg.alpha_composite(t, (5, 8))
+    t = Image.open(os.path.join(OUT, "p_cosmos_2.png"))
+    bg.alpha_composite(t, (0, -2))
     return bg.resize((size, size), Image.NEAREST)
 
 
 def build_tiles():
-    sheet = []
-    for name, *_ in SPECIES:
-        for st in range(3):
-            t = S2.plant_tile(name, st)
-            write(f"p_{name}_{st}", t)
-            sheet.append(t)
-        write(f"m_{name}_1", S2.mini_tile(name))
-    obs = {"stone": S2.stone_tile(), "stone_cracked": S2.stone_tile(True), "weed_0": S2.weed_tile(0), "weed_1": S2.weed_tile(1),
-           "plastic": S2.plastic_tile(), "mushroom": S2.mushroom_tile()}
-    for n, c in obs.items():
-        write(n, c)
-    preview("tiles", sheet + list(obs.values()), cols=9, scale=3, bg=(90, 140, 70, 255))
+    import import_art
+    import_art.tiles()
 
 
 def build_backgrounds():

@@ -163,7 +163,12 @@
     if (cur) lines.push(cur);
     return lines;
   }
-  const HI = /^(p_|m_|stone|weed|plastic|mushroom|camp_)/; // authored at 2x for extra detail
+  const HI = /^(p_|m_|stone|weed|plastic|mushroom|camp_)/;
+  // tiles are 64x64 with a 54-wide grass patch standing on the bottom edge; flowers rise above the cell
+  function tile(name, x, y, size = CELL) {
+    const k = size / 54;
+    img(name, x - 5 * k, y - 9.5 * k, 64 * k, 64 * k);
+  } // authored at 2x for extra detail
   function img(name, x, y, w, h) {
     const im = IMG[name];
     if (!im || !im.complete || !im.naturalWidth) return;
@@ -686,7 +691,7 @@
       const a = (i / fl.length) * Math.PI * 2 + st.time * 0.15;
       const x = cx + Math.cos(a) * 92, y = cy + 6 + Math.sin(a) * 30;
       ctx.globalAlpha = 0.95;
-      img(`m_${sp}_1`, x - 7, y - 7);
+      img(`m_${sp}_1`, x - 8, y - 8);
     });
     ctx.globalAlpha = 1;
     text("PETAL", cx, cy - 12 + bob, 30, COL.pink, "center", COL.ink);
@@ -976,13 +981,14 @@
       if (age < 0) continue;
       const X = cellX(x), Y = cellY(y) + Math.round(drop);
       if (c.k === "plant") {
-        img(`p_${c.sp}_${stageOf(c)}`, X, Y);
+        tile(`p_${c.sp}_${stageOf(c)}`, X, Y);
+        if (stageOf(c) === 0) { rect(X + 11, Y + 2, 5, 5, COL.ink); rect(X + 12, Y + 3, 3, 3, PETAL[c.sp][0]); }   // buds look alike: mark the species
         // subtle sway on lush plants
-      } else if (c.k === "stone") img("stone", X, Y);
-      else if (c.k === "stone2") img("stone_cracked", X, Y);
-      else if (c.k === "weed") img("weed_" + (Math.floor(st.time * 2 + x) % 2), X, Y);
-      else if (c.k === "plastic") img("plastic", X, Y);
-      else if (c.k === "mush") img("mushroom", X, Y);
+      } else if (c.k === "stone") tile("stone", X, Y);
+      else if (c.k === "stone2") tile("stone_cracked", X, Y);
+      else if (c.k === "weed") tile("weed_" + (Math.floor(st.time * 1.2 + x) % 2), X, Y);
+      else if (c.k === "plastic") tile("plastic", X, Y);
+      else if (c.k === "mush") tile("mushroom", X, Y);
     }
     // clear preview: golden glow
     if (clears && clears.size) {
@@ -995,18 +1001,18 @@
       ctx.globalAlpha = tgt.ok ? 0.55 : 0.0;
       for (const [cx, cy] of pc.p.cells) {
         const X = tgt.x + cx, Y = tgt.y + cy;
-        if (X >= 0 && Y >= 0 && X < 9 && Y < 9) img(`p_${pc.sp}_0`, cellX(X), cellY(Y));
+        if (X >= 0 && Y >= 0 && X < 9 && Y < 9) tile(`p_${pc.sp}_1`, cellX(X), cellY(Y));
       }
       ctx.globalAlpha = 1;
     }
     // bloom pops
     for (const f of st.fx) {
-      if (f.t < 0) { img(`p_${f.sp}_${f.stage}`, f.x, f.y); continue; }
+      if (f.t < 0) { tile(`p_${f.sp}_${f.stage}`, f.x, f.y); continue; }
       const k = f.t / 0.55;
       const s = 1 + Math.sin(Math.min(1, k * 1.6) * Math.PI) * 0.35;
       ctx.globalAlpha = Math.max(0, 1 - k * k);
       const sz = CELL * s;
-      img(`p_${f.sp}_${f.stage}`, f.x + 13.5 - sz / 2, f.y + 13.5 - sz / 2, sz, sz);
+      tile(`p_${f.sp}_${f.stage}`, f.x + 13.5 - sz / 2, f.y + 13.5 - sz / 2, sz);
       ctx.globalAlpha = 1;
     }
     ctx.restore();
@@ -1014,7 +1020,8 @@
 
   function drawPiece(pc, cx, cy, size, imgPrefix) {
     const w = pc.p.wd * size, h = pc.p.ht * size;
-    for (const [x, y] of pc.p.cells) img(imgPrefix(pc), cx - w / 2 + x * size, cy - h / 2 + y * size);
+    const cells = pc.p.cells.slice().sort((a, b) => a[1] - b[1]);
+    for (const [x, y] of cells) tile(imgPrefix(pc), cx - w / 2 + x * size, cy - h / 2 + y * size, size);
   }
   function drawTray() {
     // soft panel behind the tray
@@ -1023,11 +1030,11 @@
     for (let s = 0; s < 3; s++) {
       const pc = G.tray[s];
       const cx = slotX(s), cy = TY + 39;
-      rect(cx - 37, TY + 2, 74, 72, "rgba(244,236,217,0.08)");
+      rect(cx - 37, TY + 2, 74, 72, "rgba(244,236,217,0.24)");
       if (!pc || (G.drag && G.drag.slot === s)) continue;
       const fits = fitsAnywhere(pc);
       ctx.globalAlpha = fits ? 1 : 0.4;
-      drawPiece(pc, cx, cy, MINI, (p) => `m_${p.sp}_1`);
+      drawPiece(pc, cx, cy, MINI + 2, (p) => `p_${p.sp}_1`);
       ctx.globalAlpha = 1;
     }
     // bottom bar: compost + deep breath
@@ -1057,7 +1064,7 @@
       if (pc) {
         const x = G.drag.x + G.drag.ox, y = G.drag.y + G.drag.oy;
         ctx.globalAlpha = 0.95;
-        drawPiece(pc, x, y, CELL, (p) => `p_${p.sp}_0`);
+        drawPiece(pc, x, y, CELL, (p) => `p_${p.sp}_1`);
         ctx.globalAlpha = 1;
       }
     }
