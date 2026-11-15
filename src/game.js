@@ -13,12 +13,11 @@
 
   // ---------------------------------------------------------------- assets
   const IMG = {};
-  const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "camp", "flag",
+  const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "flag", "hero_front", "hero_yoga", "hero_walk_0", "hero_walk_1", "hero_walk_2", "hero_walk_3",
+    "camp_tent", "camp_van", "camp_hammock", "camp_fire", "camp_lights", "camp_mat", "camp_mugs", "camp_sign",
     "stone", "stone_cracked", "weed_0", "weed_1", "plastic", "mushroom",
-    "bee_0", "bee_1", "campfire_0", "campfire_1", "sign_open", "sign_current", "sign_done", "sign_locked"];
-  for (const i of ["pause", "play", "sound", "mute", "music", "gear", "home", "retry", "map", "close", "breath", "compost", "rain", "lock", "star", "star_off", "leaf", "check", "flower", "moves", "lang"]) names.push("i_" + i);
-  for (let f = 0; f < 4; f++) names.push("hiker_" + f);
-  names.push("yogi_0", "yogi_1");
+    "bee_0", "bee_1", "sign_open", "sign_current", "sign_done", "sign_locked"];
+  for (const i of ["pause", "play", "sound", "mute", "music", "gear", "home", "retry", "map", "close", "breath", "compost", "rain", "lock", "star", "star_off", "leaf", "check", "flower", "moves", "lang", "seed", "gift", "tasks", "shop"]) names.push("i_" + i);
   for (const c of ["orange", "blue", "pink"]) for (let f = 0; f < 2; f++) names.push(`fly_${c}_${f}`);
   for (const sp of L.SPECIES) { for (let s = 0; s < 3; s++) names.push(`p_${sp}_${s}`); names.push(`m_${sp}_1`); }
   for (const b of L.BIOMES) names.push("bg_" + b.key);
@@ -46,19 +45,74 @@
 
   // ---------------------------------------------------------------- save
   const SAVE_KEY = "petal-peaks-v1";
-  const save = Object.assign({ lang: null, unlocked: 1, stars: {}, zenBest: 0, music: true, sound: true, vib: true, tutDone: false }, (() => {
+  const save = Object.assign({ lang: null, unlocked: 1, stars: {}, zenBest: 0, music: true, sound: true, vib: true, tutDone: false,
+    seeds: 0, tasksDay: "", tasks: [], bonusDay: "", bonusStreak: 0, rainB: 1, breathB: 0 }, (() => {
     try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (e) { return {}; }
   })());
   function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
   const t = (k) => (I18N[save.lang || "en"][k] ?? k);
   const vib = (ms) => { if (save.vib && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} };
 
+  // ---------------------------------------------------------------- seeds, daily tasks, daily bonus
+  const TASKS = [
+    { id: "bloom", need: [40, 60, 80], rew: 30 }, { id: "lines", need: [10, 15, 20], rew: 25 }, { id: "combo", need: [2, 3, 4], rew: 30 },
+    { id: "levels", need: [2, 3], rew: 40 }, { id: "stars3", need: [1, 2], rew: 40 }, { id: "zen", need: [500, 800, 1200], rew: 30 },
+    { id: "rain", need: [1, 2], rew: 25 }, { id: "compost", need: [3, 4], rew: 15 },
+  ];
+  const BONUS = [20, 30, 40, 50, 60, 80, 150];
+  const PRICE = { rain: 40, breath: 30, moves: 50 };
+  const dayStr = (d = new Date()) => d.toLocaleDateString("sv");
+  const yesterday = () => dayStr(new Date(Date.now() - 86400000));
+  function ensureDay() {
+    const d = dayStr();
+    if (save.tasksDay === d && save.tasks.length) return;
+    let h = 0;
+    for (const ch of d) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const r = L.rng(h), pool = TASKS.slice(), out = [];
+    for (let i = 0; i < 3; i++) {
+      const k = pool.splice(Math.floor(r() * pool.length), 1)[0];
+      out.push({ id: k.id, need: k.need[Math.floor(r() * k.need.length)], rew: k.rew, prog: 0, claimed: false });
+    }
+    save.tasks = out; save.tasksDay = d; persist();
+  }
+  function task(id, n = 1) {
+    if (st.demo) return;
+    ensureDay();
+    for (const k of save.tasks) if (k.id === id && k.prog < k.need) {
+      k.prog = Math.min(k.need, k.prog + n);
+      if (k.prog >= k.need) { toast(t("taskDone")); A.sfx.chime(); }
+    }
+    persist();
+  }
+  const tasksReady = () => { ensureDay(); return save.tasks.some((k) => k.prog >= k.need && !k.claimed); };
+  const bonusReady = () => save.bonusDay !== dayStr();
+  function bonusIndex() {            // which of the 7 days is next (or was claimed today)
+    if (!bonusReady()) return (save.bonusStreak - 1) % 7;
+    return save.bonusDay === yesterday() ? save.bonusStreak % 7 : 0;
+  }
+  function claimBonus() {
+    if (!bonusReady()) return;
+    const i = bonusIndex();
+    save.bonusStreak = i + 1; save.bonusDay = dayStr();
+    addSeeds(BONUS[i], W / 2, H / 2);
+    if (i === 6) save.rainB++;
+    persist(); A.sfx.win();
+  }
+  function addSeeds(n, x, y) {
+    save.seeds += n; persist();
+    if (x !== undefined) { float(x, y, "+" + n, COL.gold, 12); sparks(x, y, 14); }
+  }
+  function spend(n) {
+    if (save.seeds < n) { toast(t("noSeeds")); A.sfx.bad(); return false; }
+    save.seeds -= n; persist(); A.sfx.chime(); return true;
+  }
+
   // ---------------------------------------------------------------- state
   const st = {
     mode: "lang", time: 0, idle: 0, buttons: [],
     page: 0, help: null, settings: false, paused: false, resetArm: 0,
     flies: [], parts: [], floats: [], fx: [], bees: [], drops: [], shake: 0,
-    toast: null, demo: false,
+    toast: null, demo: false, modal: null, campCache: {},
   };
   let G = null; // current game
 
@@ -109,7 +163,7 @@
     if (cur) lines.push(cur);
     return lines;
   }
-  const HI = /^(p_|m_|stone|weed|plastic|mushroom|hiker|yogi)/; // authored at 2x for extra detail
+  const HI = /^(p_|m_|stone|weed|plastic|mushroom|camp_)/; // authored at 2x for extra detail
   function img(name, x, y, w, h) {
     const im = IMG[name];
     if (!im || !im.complete || !im.naturalWidth) return;
@@ -138,6 +192,11 @@
     if (ih > 0) { tile(0, b, b, m, x, y + b, b, ih); tile(S - b, b, b, m, x + w - b, y + b, b, ih); }
     if (iw > 0 && ih > 0) tile(b, b, m, m, x + b, y + b, iw, ih);
   }
+  function imgH(name, x, y, h) {           // draw scaled to a given height
+    const im = IMG[name];
+    if (!im || !im.naturalWidth) return;
+    ctx.drawImage(im, Math.round(x), Math.round(y), Math.round(im.naturalWidth / im.naturalHeight * h), h);
+  }
   function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
   function button(x, y, w, h, label, on, opt = {}) {
     const skin = opt.skin || "btn_green";
@@ -159,7 +218,9 @@
 
   // ---------------------------------------------------------------- background + ambience
   function drawBg(key, plain) {
-    img("bg_" + key, 0, H - 640, 252, 640); // painted at 180x457, shown larger for chunky pixels
+    // illustration is 252x552; cover the screen, anchored to the top (the dark foreground sits under the tray)
+    const k = Math.max(1, H / 552);
+    img("bg_" + key, (W - W * k) / 2, 0, W * k, 552 * k);
     if (plain) return;
     // drifting butterflies
     for (const f of st.flies) {
@@ -350,9 +411,13 @@
       G.board[k] = null;
       i++;
     }
+    task("bloom", [...cells].length);
+    task("lines", lines);
+    if (lines > 1) task("combo");
     const mult = lines + (lines > 1 ? lines - 1 : 0);
     const gained = pts * mult + (G.streak > 1 ? 10 * G.streak : 0);
     G.score += gained;
+    if (G.zen) task("zen", gained);
     syncScoreGoals();
     // centre of the cleared cells for the score popup
     let sx = 0, sy = 0;
@@ -378,6 +443,7 @@
   }
   function rain() {
     A.sfx.rain();
+    task("rain");
     st.drops = [];
     for (let i = 0; i < 70; i++) st.drops.push({ x: Math.random() * (W + 40) - 20, y: -Math.random() * H, v: 180 + Math.random() * 90, t: 0 });
     st.rainT = 2.4;
@@ -423,14 +489,20 @@
     save.stars[n] = Math.max(save.stars[n] || 0, G.stars);
     save.unlocked = Math.max(save.unlocked, n + 1);
     if (G.lv.tutorial) save.tutDone = true;
+    G.seedsWon = G.stars * 5 + (G.lv.summit ? 20 : 0);
+    save.seeds += G.seedsWon;
+    task("levels");
+    if (G.stars === 3) task("stars3");
     persist();
   }
 
   // undo the last move (deep breath)
   function deepBreath() {
     if (!G || G.zen && !G.history) { toast(t("breatheNone")); return; }
-    if (G.breathUsed) { toast(t("breatheUsed")); return; }
     if (!G.history) { toast(t("breatheNone")); return; }
+    if (G.breathUsed) {
+      if (save.breathB > 0 && !st.demo) { save.breathB--; persist(); } else { toast(t("breatheUsed")); return; }
+    }
     restore(G.history);
     G.history = null;
     G.breathUsed = true;
@@ -518,7 +590,7 @@
       if (b.hold) { b.hold(true); st.holding = b; return; }
       b.on && b.on(p); A.sfx.tap(); return;
     }
-    if (st.help || st.settings) return;
+    if (st.help || st.settings || st.modal) return;
     if (st.mode === "play" && G && !G.over && !st.paused) {
       // pick up a piece from the tray
       if (p.y > TY - 4 && p.y < TY + 82) {
@@ -550,6 +622,7 @@
     if (target && target.compost) {
       if (G.compost > 0) {
         G.compost--;
+        task("compost");
         let pc = randomPiece();
         for (let k = 0; k < 6 && !fitsAnywhere(pc); k++) pc = randomPiece();
         G.tray[d.slot] = pc;
@@ -565,7 +638,7 @@
   canvas.addEventListener("pointerup", endPointer);
   canvas.addEventListener("pointercancel", endPointer);
 
-  function compostRect() { return { x: 10, y: BB + 4, w: 78, h: 24 }; }
+  function compostRect() { return { x: 6, y: BB + 4, w: 74, h: 24 }; }
   // where would the dragged piece land?
   function dropTarget(d) {
     const pc = G.tray[d.slot];
@@ -621,29 +694,118 @@
     text(t("tagline"), cx, cy + 44, 8, COL.cream);
   }
 
+  function seedPill(x, y) {
+    nine("btn_stone", x, y, 62, 20, 7);
+    img("i_seed", x + 5, y + 2);
+    text(String(save.seeds), x + 38, y + 9, 9, COL.gold);
+  }
+  function badge(x, y) {
+    const r = 3 + Math.sin(st.time * 6) * 0.6;
+    ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(x, y, r + 1.2, 0, 7); ctx.fill();
+    ctx.fillStyle = "#ef5a4a"; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  }
+  function navBar() {
+    const items = [
+      ["i_map", t("trail"), () => { st.mode = "map"; st.page = Math.floor((save.unlocked - 1) / 10); }, false],
+      ["i_tasks", t("tasks"), () => { st.modal = "tasks"; }, tasksReady()],
+      ["i_gift", t("bonus"), () => { st.modal = "bonus"; }, bonusReady()],
+      ["i_shop", t("shop"), () => { st.modal = "shop"; }, false],
+    ];
+    rect(0, H - 46, W, 46, "rgba(14,20,22,0.55)");
+    items.forEach(([icon, label, on, dot], i) => {
+      const x = 4 + i * 62, y = H - 42;
+      button(x, y, 58, 38, "", on, { skin: "btn_wood" });
+      img(icon, x + 22.5, y + 5);
+      text(label, x + 29, y + 26, 6.5, COL.cream);
+      if (dot) badge(x + 52, y + 4);
+    });
+  }
   function drawTitle() {
     drawBg("meadow");
-    rect(0, 0, W, H, "rgba(31,22,34,0.18)");
+    rect(0, 0, W, H, "rgba(20,16,26,0.16)");
+    seedPill(6, TOP + 2);
     topButtons();
-    langToggle(8, TOP + 2);
-    logo(W / 2, H * 0.27);
-    const by = H * 0.52;
+    logo(W / 2, TOP + 78);
+    const by = Math.round(H * 0.42);
     const n = save.unlocked;
-    button(W / 2 - 70, by, 140, 32, t("play"), () => { st.mode = "map"; st.page = Math.floor((save.unlocked - 1) / 10); }, { skin: "btn_green", size: 13, icon: "i_play" });
-    text(`${t("level")} ${n} · ${I18N[save.lang].biomes[Math.floor((n - 1) / 10) % 6]}`, W / 2, by + 42, 8, COL.cream);
-    button(W / 2 - 55, by + 56, 110, 26, t("zen"), () => newGame(0, { zen: true }), { skin: "btn_pink", size: 11, icon: "i_leaf" });
-    text(`${t("zenSub")} · ${t("best")} ${save.zenBest}`, W / 2, by + 92, 7, COL.cream);
-    // our heroine strolls across the meadow
-    const hx = ((st.time * 14) % (W + 60)) - 30;
-    img("hiker_" + (Math.floor(st.time * 5) % 4), hx, H - 96, 36, 46);
-    // quote of the day
-    const q = I18N[save.lang].quotes[Math.floor(Date.now() / 86400000) % 6];
-    const lines = wrap(`“${q}”`, 200, 7);
-    lines.forEach((l, i) => text(l, W / 2, H - 40 + i * 10, 7, COL.paper, "center", COL.ink2));
+    button(W / 2 - 78, by, 156, 36, `${t("play")} · ${t("level")} ${n}`, () => newGame(n), { skin: "btn_green", size: 12, icon: "i_play" });
+    text(I18N[save.lang].biomes[Math.floor((n - 1) / 10) % 6], W / 2, by + 45, 8, COL.cream);
+    button(W / 2 - 55, by + 58, 110, 26, t("zen"), () => newGame(0, { zen: true }), { skin: "btn_pink", size: 11, icon: "i_leaf" });
+    text(`${t("zenSub")} · ${t("best")} ${save.zenBest}`, W / 2, by + 93, 7, COL.cream);
+    // our heroine strolls along the bottom
+    const hx = ((st.time * 16) % (W + 90)) - 60;
+    imgH("hero_walk_" + (Math.floor(st.time * 5) % 4), hx, H - 46 - 86 + (Math.floor(st.time * 5) % 2), 84);
+    navBar();
+    if (!st.bonusShown && bonusReady() && !st.modal && !st.help && !st.settings) { st.bonusShown = true; st.modal = "bonus"; }
   }
 
-  function langToggle(x, y) {
-    button(x, y, 34, 20, save.lang === "sr" ? "SR" : "EN", () => { save.lang = save.lang === "sr" ? "en" : "sr"; persist(); }, { skin: "btn_wood", size: 8 });
+  // ---------- home overlays: daily tasks, daily bonus, shop
+  function modalFrame(title, ph) {
+    ctx.fillStyle = "rgba(14,12,20,0.6)";
+    ctx.fillRect(0, 0, W, H);
+    const py = Math.round((H - ph) / 2);
+    nine("panel", 10, py, W - 20, ph, 10);
+    text(title, W / 2, py + 19, 13, "#a5303a", "center", null);
+    iconButton(W - 36, py + 7, "i_close", () => { st.modal = null; });
+    img("i_seed", 20, py + 9);
+    text(String(save.seeds), 36, py + 16, 9, "#bd7e1e", "left", null);
+    return py;
+  }
+  function drawModal() {
+    if (st.modal === "tasks") {
+      ensureDay();
+      const py = modalFrame(t("dailyTasks"), 214);
+      save.tasks.forEach((k, i) => {
+        const y = py + 36 + i * 52;
+        rect(18, y, W - 36, 46, "rgba(194,177,153,0.4)");
+        text(t("task_" + k.id).replace("{n}", k.need), 24, y + 11, 8, COL.brown, "left", null);
+        rect(24, y + 22, 130, 8, "#9c8a76");
+        rect(25, y + 23, Math.round(128 * k.prog / k.need), 6, k.prog >= k.need ? "#6aa64a" : "#e2a92f");
+        text(`${Math.min(k.prog, k.need)}/${k.need}`, 89, y + 38, 7, "#875432", "center", null);
+        const done = k.prog >= k.need;
+        if (k.claimed) { img("i_check", 198, y + 16); }
+        else button(166, y + 12, 62, 24, String(k.rew), () => {
+          if (!done) return;
+          k.claimed = true; addSeeds(k.rew, 196, y + 20);
+        }, { skin: done ? "btn_green" : "btn_stone", size: 9, icon: "i_seed" });
+      });
+      text(t("newTasks"), W / 2, py + 200, 7, "#875432", "center", null);
+    } else if (st.modal === "bonus") {
+      const py = modalFrame(t("dailyBonus"), 222);
+      const cur = bonusIndex(), ready = bonusReady();
+      for (let i = 0; i < 7; i++) {
+        const big = i === 6;
+        const col = i % 4, row = Math.floor(i / 4);
+        const x = 18 + col * 54, y = py + 36 + row * 62, w = big ? 104 : 50;
+        const got = ready ? i < cur : i <= cur;
+        rect(x, y, w, 56, i === cur && ready ? "rgba(245,209,79,0.75)" : got ? "rgba(147,196,90,0.5)" : "rgba(194,177,153,0.45)");
+        if (i === cur && ready) { ctx.strokeStyle = "#bd7e1e"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 55); }
+        text(`${t("day")} ${i + 1}`, x + w / 2, y + 9, 7, COL.brown, "center", null);
+        img("i_seed", x + w / 2 - (big ? 20 : 6.5), y + 18);
+        if (big) img("i_rain", x + w / 2 + 6, y + 18);
+        text(String(BONUS[i]) + (big ? " +1" : ""), x + w / 2, y + 43, 9, "#bd7e1e", "center", null);
+        if (got) img("i_check", x + w - 15, y + 2);
+      }
+      if (ready) button(W / 2 - 60, py + 166, 120, 28, t("claim"), () => claimBonus(), { skin: "btn_green", size: 11, icon: "i_gift" });
+      else wrap(t("comeBack"), 200, 8).forEach((l, i) => text(l, W / 2, py + 176 + i * 11, 8, "#875432", "center", null));
+    } else if (st.modal === "shop") {
+      const py = modalFrame(t("shop"), 170);
+      const rows = [
+        ["i_rain", t("rainBooster"), t("rainBoosterSub"), "rainB", PRICE.rain],
+        ["i_breath", t("breathBooster"), t("breathBoosterSub"), "breathB", PRICE.breath],
+      ];
+      rows.forEach(([icon, name, sub, key, price], i) => {
+        const y = py + 38 + i * 60;
+        rect(18, y, W - 36, 54, "rgba(194,177,153,0.4)");
+        nine("btn_stone", 24, y + 8, 24, 24, 7);
+        img(icon, 29.5, y + 12);
+        text(name, 54, y + 12, 9, COL.brown, "left", null);
+        text(sub, 54, y + 25, 6.5, "#875432", "left", null);
+        text(`${t("owned")}: ${save[key]}`, 54, y + 40, 7, "#2c7a6c", "left", null);
+        button(166, y + 26, 62, 22, String(price), () => { if (spend(price)) { save[key]++; persist(); sparks(196, y + 36, 10); } },
+          { skin: save.seeds >= price ? "btn_gold" : "btn_stone", size: 9, icon: "i_seed" });
+      });
+    }
   }
 
   // ---------- trail map
@@ -688,7 +850,7 @@
     const cur = save.unlocked - 1 - page * 10;
     if (cur >= 0 && cur < 10) {
       const { x, y } = nodePos(cur);
-      img("hiker_" + (Math.floor(st.time * 4) % 4), x + 10, y - 22);
+      imgH("hero_front", x + 10, y - 34, 38);
     }
     // header
     nine("panel", 32, TOP + 2, W - 64, 34, 10);
@@ -703,19 +865,35 @@
   }
 
   // ---------- summit camp
+  const CAMP_TINT = ["rgba(255,236,200,0.06)", "rgba(255,140,130,0.22)", "rgba(120,170,235,0.22)", "rgba(70,150,110,0.24)", "rgba(255,120,70,0.26)", "rgba(240,150,175,0.18)"];
+  function campLayer(biome) {       // camp objects composed once per area and tinted with its light
+    if (st.campCache[biome]) return st.campCache[biome];
+    const c = document.createElement("canvas");
+    c.width = 504; c.height = 320;
+    const g = c.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    const put = (name, x, y) => { const im = IMG["camp_" + name]; if (im.naturalWidth) g.drawImage(im, x * 2, y * 2); };
+    put("lights", 92, 4); put("hammock", 2, 34); put("van", 168, 30); put("tent", 74, 52); put("sign", 146, 34);
+    put("mat", 14, 122); put("fire", 132, 112); put("mugs", 190, 132);
+    g.globalCompositeOperation = "source-atop";
+    g.fillStyle = CAMP_TINT[biome]; g.fillRect(0, 0, 504, 320);
+    st.campCache[biome] = c;
+    return c;
+  }
   function drawCamp() {
     const biome = (Math.floor((G.n - 1) / 10)) % 6;
     drawBg(L.BIOMES[biome].key);
-    rect(0, 0, W, H, "rgba(58,35,80,0.35)");
-    const cy = H / 2 - 40;
-    img("camp", W / 2 - 110, cy);
-    img("campfire_" + (Math.floor(st.time * 6) % 2), W / 2 + 5, cy + 78);
-    img("yogi_" + (Math.floor(st.time / 2) % 2), W / 2 - 110 + 65, cy + 74);
-    if (Math.random() < 0.3) st.parts.push({ x: W / 2 + 14, y: cy + 80, vx: (Math.random() - 0.5) * 6, vy: -20 - Math.random() * 20, g: 0, life: 1.2, t: 0, c: Math.random() < 0.5 ? COL.gold : "#f6ab55", s: 1, spark: true });
-    text(t("camp"), W / 2, cy - 40, 16, COL.gold);
-    text(`${t("summit")} ${G.n} · ${I18N[save.lang].biomes[biome]}`, W / 2, cy - 20, 8, COL.cream);
-    wrap(t("campSub"), 210, 8).forEach((l, i) => text(l, W / 2, cy + 136 + i * 11, 8, COL.paper));
-    button(W / 2 - 60, cy + 170, 120, 28, t("newTrail"), () => { st.mode = "map"; st.page = Math.floor((save.unlocked - 1) / 10); }, { skin: "btn_green", size: 10, icon: "i_map" });
+    rect(0, 0, W, H, "rgba(20,14,30,0.25)");
+    const cy = Math.round(H * 0.36);
+    ctx.fillStyle = "rgba(10,14,12,0.42)";
+    ctx.beginPath(); ctx.ellipse(W / 2, cy + 128, 124, 34, 0, 0, 7); ctx.fill();
+    ctx.drawImage(campLayer(biome), 0, cy, 252, 160);
+    imgH("hero_yoga", 26, cy + 76 - (Math.floor(st.time / 2) % 2), 62);
+    if (Math.random() < 0.35) st.parts.push({ x: 152 + Math.random() * 6, y: cy + 118, vx: (Math.random() - 0.5) * 6, vy: -20 - Math.random() * 20, g: 0, life: 1.2, t: 0, c: Math.random() < 0.5 ? COL.gold : "#f6ab55", s: 1, spark: true });
+    text(t("camp"), W / 2, cy - 34, 16, COL.gold);
+    text(`${t("summit")} ${G.n} · ${I18N[save.lang].biomes[biome]}`, W / 2, cy - 15, 8, COL.cream);
+    wrap(t("campSub"), 210, 8).forEach((l, i) => text(l, W / 2, cy + 178 + i * 11, 8, COL.paper));
+    button(W / 2 - 60, cy + 206, 120, 28, t("newTrail"), () => { st.mode = "map"; st.page = Math.floor((save.unlocked - 1) / 10); }, { skin: "btn_green", size: 10, icon: "i_map" });
   }
 
   // ---------------------------------------------------------------- play screen
@@ -857,14 +1035,19 @@
     const hot = G.drag && G.drag.type === "user" && dropTarget(G.drag)?.compost;
     nine(hot ? "btn_gold" : "btn_wood", cr.x, cr.y, cr.w, cr.h, 7);
     img("i_compost", cr.x + 6, cr.y + 4);
-    for (let i = 0; i < 3; i++) img(i < G.compost ? "i_leaf" : "i_star_off", cr.x + 24 + i * 15, cr.y + 4, 13, 13);
+    for (let i = 0; i < 3; i++) img(i < G.compost ? "i_leaf" : "i_star_off", cr.x + 22 + i * 15, cr.y + 4, 13, 13);
+    // rain booster
+    button(cr.x + cr.w + 4, cr.y, 46, 24, String(save.rainB), () => {
+      if (st.demo || G.over) return;
+      if (save.rainB > 0) { save.rainB--; persist(); rain(); } else toast(t("noRain"));
+    }, { skin: save.rainB > 0 ? "btn_green" : "btn_stone", size: 9, icon: "i_rain" });
     // breath button (hold)
     const bx = W - 104, by = cr.y;
-    const used = G.breathUsed || !G.history;
+    const used = (G.breathUsed && !save.breathB) || !G.history;
     button(bx, by, 94, 24, t("breathe"), null, {
       skin: used ? "btn_stone" : "btn_pink", size: 7, icon: "i_breath",
       hold: (down) => {
-        if (down) { if (G.breathUsed) toast(t("breatheUsed")); else if (!G.history) toast(t("breatheNone")); else { G.breath = { t: 0 }; A.sfx.breathe(true); } }
+        if (down) { if (G.breathUsed && !save.breathB) toast(t("breatheUsed")); else if (!G.history) toast(t("breatheNone")); else { G.breath = { t: 0 }; A.sfx.breathe(true); } }
         else if (G.breath) { G.breath = null; }
       },
     });
@@ -1004,7 +1187,9 @@
         if (on && !G["s" + i]) { G["s" + i] = true; A.sfx.star(i); sparks(W / 2 - 36 + i * 36, cy + 11, 12); }
         img(on ? "star_big" : "star_big_off", W / 2 - 47 + i * 36, cy);
       }
-      text(`${t("score")} ${G.score}`, W / 2, cy + 38, 10, COL.brown, "center", null);
+      text(`${t("score")} ${G.score}`, W / 2 - 30, cy + 38, 10, COL.brown, "center", null);
+      img("i_seed", W / 2 + 22, cy + 31);
+      text("+" + (G.seedsWon || 0), W / 2 + 50, cy + 38, 10, "#bd7e1e", "center", null);
       const summit = G.lv.summit;
       button(W / 2 - 100, cy + 56, 96, 26, t("map"), () => { st.mode = "map"; st.page = Math.floor((G.n - 1) / 10); }, { skin: "btn_wood", size: 9, icon: "i_map" });
       button(W / 2 + 4, cy + 56, 96, 26, t("next"), () => {
@@ -1022,7 +1207,7 @@
       return;
     }
     const canBreathe = !G.breathUsed && G.history && G.over === "full";
-    overlayPanel(G.over === "moves" ? t("loseMoves") : t("lose"), t("loseSub"), canBreathe ? 172 : 128);
+    overlayPanel(G.over === "moves" ? t("loseMoves") : t("lose"), t("loseSub"), canBreathe ? 172 : G.over === "moves" ? 158 : 128);
     const cy = H / 2 - 30;
     let y = cy + 6;
     if (!G.breathUsed && G.history && G.over === "full") {
@@ -1032,6 +1217,12 @@
       });
       text(t("breatheHold"), W / 2, y + 34, 7, "#875432", "center", null);
       y += 44;
+    }
+    if (G.over === "moves") {
+      button(W / 2 - 70, y, 140, 26, `${t("moreMoves")} · ${PRICE.moves}`, () => {
+        if (spend(PRICE.moves)) { G.moves += 5; G.over = null; }
+      }, { skin: save.seeds >= PRICE.moves ? "btn_gold" : "btn_stone", size: 9, icon: "i_seed" });
+      y += 30;
     }
     button(W / 2 - 100, y + 6, 96, 26, t("map"), () => { st.mode = "map"; st.page = Math.floor((G.n - 1) / 10); }, { skin: "btn_wood", size: 9, icon: "i_map" });
     button(W / 2 + 4, y + 6, 96, 26, t("retry"), () => newGame(G.n), { skin: "btn_green", size: 9, icon: "i_retry" });
@@ -1215,11 +1406,14 @@
       ctx.fillStyle = "rgba(189,224,248,0.4)"; ctx.fill(); ctx.strokeStyle = "#bde0f8"; ctx.lineWidth = 2; ctx.stroke();
       img("i_breath", x + w - 62, y + h / 2 - 7);
     } else if (page === 7) {
-      ctx.drawImage(IMG.bg_alpine, 0, 150, 180, Math.round(180 * h / w), x, y, w, h);
+      for (let i = 0; i < 3; i++) { img("i_seed", x + 40 + i * 60, y + 30 - ((T * 20 + i * 9) % 18)); text("+" + [15, 30, 150][i], x + 46 + i * 60, y + 56, 9, COL.gold); }
+      img("i_tasks", x + 40, y + 78); img("i_gift", x + 100, y + 78); img("i_shop", x + 160, y + 78);
+    } else if (page === 8) {
+      ctx.drawImage(IMG.bg_alpine, 0, 300, 504, Math.round(504 * h / w), x, y, w, h);
       for (let i = 0; i < 4; i++) img(i < 2 ? "sign_done" : i === 2 ? "sign_current" : "sign_locked", x + 16 + i * 44, y + h - 30 - i * 18);
       img("flag", x + w - 34, y + 8);
       const hx = x + 16 + ((T * 20) % 130), hy = y + h - 40 - ((T * 20) % 130) * 0.4;
-      img("hiker_" + (Math.floor(T * 4) % 4), hx + 10, hy - 10);
+      imgH("hero_walk_" + (Math.floor(T * 5) % 4), hx + 10, hy - 18, 32);
     }
   }
 
@@ -1238,7 +1432,9 @@
     if (st.mode === "lang") drawLang();
     else if (st.mode === "title") {
       drawTitle();
-      if (st.idle > 20 && !st.help && !st.settings) startDemo();
+      drawParts();
+      if (st.modal) { st.buttons = []; drawModal(); drawParts(); }
+      if (st.idle > 25 && !st.help && !st.settings && !st.modal) startDemo();
     } else if (st.mode === "map") drawMap();
     else if (st.mode === "camp") { drawCamp(); drawParts(); }
     else if (st.mode === "play" && G) {

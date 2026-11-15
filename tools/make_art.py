@@ -10,9 +10,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
 import numpy as np
-import scene
 import sprites2 as S2
-from sprites2 import hiker, yogi
 from pix import C, Canvas, RAMPS, hexrgb, ramp_gradient, dither_pick, value_noise_1d  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -257,6 +255,40 @@ def icon(name):
         cv.ellipse(5, 4, 2.6, 3.4, W_)
         cv.ellipse(5.5, 10, 2, 2, W_)
         cv.ellipse(9.5, 6, 1.6, 2.2, D_)
+    elif name == "seed":
+        cv.ellipse(6.5, 8, 4.2, 4.6, C("gold", 3))
+        cv.ellipse(5.5, 7, 2.4, 2.8, C("gold", 4))
+        cv.px(4, 6, C("gold", 5))
+        cv.line(6, 3, 6, 1, C("grass", 4))
+        cv.line(7, 2, 9, 0, C("grass", 5))
+        cv.px(4, 1, C("grass", 4))
+        cv.px(5, 2, C("grass", 4))
+    elif name == "gift":
+        cv.rect(1, 5, 11, 7, C("pink", 3))
+        cv.rect(1, 5, 11, 2, C("pink", 4))
+        cv.rect(5, 5, 3, 7, C("gold", 4))
+        cv.rect(0, 3, 13, 3, C("pink", 2))
+        cv.rect(5, 3, 3, 3, C("gold", 3))
+        cv.ellipse(4, 2, 2.2, 1.6, C("gold", 4))
+        cv.ellipse(9, 2, 2.2, 1.6, C("gold", 4))
+    elif name == "tasks":
+        cv.rect(2, 2, 9, 11, C("cream", 4))
+        cv.rect(2, 12, 9, 1, C("cream", 1))
+        cv.rect(4, 0, 5, 3, C("wood", 3))
+        for y in (5, 8, 11):
+            cv.px(4, y, C("grass", 3))
+            cv.hline(6, 9, y, C("wood", 2))
+        cv.px(3, 4, C("grass", 3))
+    elif name == "shop":
+        cv.poly([(1.5, 5), (11.5, 5), (10, 12.5), (3, 12.5)], C("wood", 4))
+        for x in (4, 6, 8):
+            cv.vline(x, 6, 11, C("wood", 2))
+        cv.rect(1, 4, 11, 2, C("wood", 5))
+        for a in range(0, 181, 20):
+            ang = math.radians(180 + a)
+            cv.px(6.5 + math.cos(ang) * 4, 4.5 + math.sin(ang) * 4, C("wood", 2))
+        cv.px(5, 3, C("pink", 4))
+        cv.px(8, 3, C("gold", 4))
     elif name == "lang":
         cv.disc(6.5, 6.5, 5.6, C("blue", 3))
         cv.ellipse(5, 5, 2.5, 2, C("grass", 4))
@@ -476,8 +508,8 @@ def camp_scene():
 
 
 def app_icon(size=512):
-    """App icon: a lush cosmos tile in front of the meadow mountains."""
-    bg = Image.fromarray(scene.render("meadow", 300)).crop((58, 168, 122, 232)).convert("RGBA")
+    """App icon: a lush cosmos tile in front of the meadow."""
+    bg = Image.open(os.path.join(OUT, "bg_meadow.png")).convert("RGBA").crop((150, 300, 406, 556)).resize((64, 64), Image.BOX)
     t = S2.plant_tile("cosmos", 2).image()
     bg.alpha_composite(t, (5, 8))
     return bg.resize((size, size), Image.NEAREST)
@@ -499,8 +531,11 @@ def build_tiles():
 
 
 def build_backgrounds():
-    for i, key in enumerate(scene.BIOMES):
-        Image.fromarray(scene.render(key, 300 + i * 11)).save(os.path.join(OUT, f"bg_{key}.png"))
+    import import_art
+    import_art.backgrounds()
+    import_art.hero()
+    import_art.camp()
+
 
 
 def build_ui():
@@ -509,7 +544,7 @@ def build_ui():
     for name, ramp, base in (("btn_green", "grass", 4), ("btn_wood", "wood", 4), ("btn_pink", "pink", 3), ("btn_gold", "gold", 3), ("btn_stone", "stone", 3)):
         write(name, button_9slice(ramp, base))
     names = ["pause", "play", "sound", "mute", "music", "gear", "home", "retry", "map", "close", "breath", "compost",
-             "rain", "lock", "star", "star_off", "leaf", "check", "flower", "moves", "lang"]
+             "rain", "lock", "star", "star_off", "leaf", "check", "flower", "moves", "lang", "seed", "gift", "tasks", "shop"]
     ics = []
     for n in names:
         c = icon(n)
@@ -519,27 +554,16 @@ def build_ui():
     write("star_big_off", star_big(False))
     for f in (0, 1):
         write(f"bee_{f}", bee(f))
-        write(f"campfire_{f}", campfire(f))
         for r in ("orange", "blue", "pink"):
             write(f"fly_{r}_{f}", butterfly(f, r))
-    for f in (0, 1):
-        write(f"yogi_{f}", yogi(f))
     hk = []
-    for f in range(4):
-        h = hiker(f)
-        write(f"hiker_{f}", h)
-        hk.append(h)
     sp = []
     for st in ("open", "current", "done", "locked"):
         c = signpost(st)
         write("sign_" + st, c)
         sp.append(c)
     write("flag", summit_flag())
-    cs = camp_scene()
-    write("camp", cs)
-    preview("hero", [hiker(f) for f in range(4)] + [yogi(0), yogi(1)], scale=10)
     preview("ui", ics + [star_big(), star_big(False), bee(0), bee(1), butterfly(0, "orange"), butterfly(1, "blue")] + hk + sp + [summit_flag(), campfire(0), panel_9slice(), button_9slice("grass", 4), button_9slice("wood", 4)], cols=12)
-    preview("camp", [cs], scale=4)
     from PIL import Image as Im
     ic = app_icon(512)
     os.makedirs(os.path.join(ROOT, "icons"), exist_ok=True)
@@ -560,11 +584,11 @@ def build_ui():
 
 
 if __name__ == "__main__":
-    what = sys.argv[1:] or ["tiles", "ui", "bg"]
+    what = sys.argv[1:] or ["tiles", "bg", "ui"]
     if "tiles" in what:
         build_tiles()
-    if "ui" in what:
-        build_ui()
     if "bg" in what:
         build_backgrounds()
+    if "ui" in what:
+        build_ui()
     print("ok")

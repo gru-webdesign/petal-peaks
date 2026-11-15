@@ -19,21 +19,24 @@ Dugme **?** postoji na svakom ekranu (u igri pauzira) i otvara uputstvo od 8 str
 
 Na računaru: miš, **H** za uputstvo, **Esc** za pauzu, **U** za duboki udah.
 
+## Semenke, zadaci i bonus
+
+- **Semenke** dobijaš za zvezdice (5 po zvezdici, +20 na vrhu), dnevne zadatke i dnevni bonus.
+- **Dnevni zadaci:** tri nova svakog dana (cvetanje, redovi, kombo, nivoi, Zen poeni, kiša, kompost).
+- **Dnevni bonus:** sedam dana zaredom, sedmi dan donosi 150 semenki i jednu kišu.
+- **Prodavnica:** kiša na dugme (40), dodatni udah (30). Kad ponestane koraka, +5 koraka košta 50.
+
 ## Staza
 
 Šest predela po 10 nivoa, a posle Terasa kreće nova tura, teža: Livada, Brda lavande, Alpi, Paprat šuma, Kanjon i Terase. Svaki predeo ima svoje cveće (lavanda, mak, bela rada, suncokret, različak, runolist, kosmos, neven). Nivoi se generišu iz broja nivoa, pa je isti nivo uvek isti.
 
 ## Art
 
-Sav art je pixel art nacrtan u kodu: `tools/make_art.py` pravi sve slike (`tools/scene.py` slika pejzaže, `tools/sprites2.py` cveće na travi, prepreke i junakinju u duploj rezoluciji, `tools/pix.py` je zajednički alat) u `assets/`, ikonice u `icons/` i `resources/`. Paleta je topla, u stilu 70-ih.
+Pozadine, junakinja i predmeti za kamp su gotove ilustracije u `art/src/`. `tools/import_art.py` ih pretvara u slike za igru: skalira pozadine i produžava tamni prvi plan, uklanja pozadinu oko junakinje i pravi kadrove hodanja, i iseca predmete za kamp, koje igra boji prema svetlu svakog predela. Cveće, prepreke, ikonice i dugmad crta `tools/make_art.py` (`tools/sprites2.py`, `tools/pix.py`).
 
 ```
 python3 tools/make_art.py          # sve
-python3 tools/make_art.py tiles    # samo cveće, prepreke, leja
-python3 tools/make_art.py ui bg    # UI, junakinja, kamp, pejzaži
 ```
-
-Pregled svega u 6× uvećanju ide u `art/preview/` (nije u repou).
 
 Font: [Jersey 10](https://github.com/scfried/soft-type-jersey) (SIL Open Font License, `fonts/OFL-Jersey10.txt`). Muzika i zvuci se sintetizuju uživo (WebAudio), bez audio fajlova.
 

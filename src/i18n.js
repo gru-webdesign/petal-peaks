@@ -4,6 +4,13 @@
   "use strict";
 
   const sr = {
+    seeds: "Semenke", tasks: "Zadaci", dailyTasks: "Dnevni zadaci", bonus: "Bonus", dailyBonus: "Dnevni bonus", shop: "Prodavnica", trail: "Staza",
+    claim: "Uzmi", claimed: "Uzeto", day: "Dan", comeBack: "Dođi sutra po sledeći bonus", newTasks: "Novi zadaci stižu sutra",
+    taskDone: "Zadatak ispunjen! Uzmi nagradu", buy: "Kupi", owned: "Imaš", noSeeds: "Nemaš dovoljno semenki", moreMoves: "+5 koraka",
+    rainBooster: "Kiša na dugme", rainBoosterSub: "sve biljke odmah porastu", breathBooster: "Dodatni udah", breathBoosterSub: "još jedno vraćanje poteza",
+    noRain: "Nemaš kišu. Kupi je u prodavnici",
+    task_bloom: "Procvetaj {n} cvetova", task_lines: "Očisti {n} redova ili kvadrata", task_combo: "Napravi {n} kombo poteza", task_levels: "Pređi {n} nivoa",
+    task_stars3: "Osvoji 3 zvezdice {n}×", task_zen: "Skupi {n} poena u Zen modu", task_rain: "Izazovi kišu {n}×", task_compost: "Iskoristi kompost {n}×",
     chooseLang: "Izaberi jezik · Choose language",
     tagline: "Slaži, cvetaj, penji se",
     play: "IGRAJ",
@@ -87,11 +94,19 @@
       { title: "Prepreke", what: "Kamen zauzima polje, korov se širi, a plastika čeka reciklažu. Pečurka je poklon.", how: "Sve se uklanja isto: popuni red, kolonu ili kvadrat u kome se nalazi. Pečurka daje +2 koraka.", watch: "Korov se širi na susedno polje na svaka 4 poteza. Ne čekaj predugo!" },
       { title: "Kiša i pčele", what: "Kad cvetaš tri poteza zaredom, padne KIŠA i sve biljke porastu za jednu fazu.", how: "Svako cvetanje dovede pčele koje oprašuju i ubrzaju rast drugih biljaka.", watch: "Niz se prekida čim postaviš komad bez cvetanja." },
       { title: "Kompost i udah", what: "Kompost menja komad koji ti ne odgovara. Duboki udah vraća poslednji potez.", how: "Prevuci komad u kompost (3 puta po nivou). Za udah drži dugme dok krug ne udahne i izdahne.", watch: "Duboki udah možeš jednom po nivou." },
+      { title: "Semenke i zadaci", what: "Semenke dobijaš za zvezdice, dnevne zadatke i dnevni bonus.", how: "Na početnom ekranu dole su Zadaci, Bonus i Prodavnica. Crvena tačka znači da te čeka nagrada.", watch: "Semenkama kupuješ kišu na dugme, dodatni udah i +5 koraka kad ti ponestane." },
       { title: "Staza i Zen", what: "Svaki nivo je markacija na planinskoj stazi. Na svakih 10 je vrh i kamp.", how: "Na stazi dodirni markaciju da igraš. Zen mod je beskonačna leja bez ciljeva i koraka.", watch: "Staza nema kraja: posle Terasa kreće nova tura, sve teža." },
     ],
   };
 
   const en = {
+    seeds: "Seeds", tasks: "Tasks", dailyTasks: "Daily tasks", bonus: "Bonus", dailyBonus: "Daily bonus", shop: "Shop", trail: "Trail",
+    claim: "Claim", claimed: "Claimed", day: "Day", comeBack: "Come back tomorrow for the next bonus", newTasks: "New tasks arrive tomorrow",
+    taskDone: "Task complete! Claim your reward", buy: "Buy", owned: "Owned", noSeeds: "Not enough seeds", moreMoves: "+5 moves",
+    rainBooster: "Rain on demand", rainBoosterSub: "every plant grows at once", breathBooster: "Extra breath", breathBoosterSub: "one more undo",
+    noRain: "No rain left. Buy it in the shop",
+    task_bloom: "Bloom {n} flowers", task_lines: "Clear {n} rows or squares", task_combo: "Make {n} combo moves", task_levels: "Finish {n} levels",
+    task_stars3: "Earn 3 stars {n}×", task_zen: "Score {n} points in Zen mode", task_rain: "Make it rain {n}×", task_compost: "Use the compost {n}×",
     chooseLang: "Izaberi jezik · Choose language",
     tagline: "Place, bloom, climb",
     play: "PLAY",
@@ -175,6 +190,7 @@
       { title: "Obstacles", what: "Stones take up space, weeds spread and plastic waits to be recycled. A mushroom is a gift.", how: "All of them clear the same way: fill the row, column or square they sit in. A mushroom gives +2 moves.", watch: "Weeds spread to a neighbouring square every 4 moves. Don't wait too long!" },
       { title: "Rain and bees", what: "Bloom three moves in a row and RAIN falls: every plant grows one stage.", how: "Every bloom brings bees that pollinate and speed up other plants.", watch: "The streak ends as soon as you place a piece without blooming." },
       { title: "Compost and breath", what: "The compost swaps a piece you don't like. Deep breath undoes your last move.", how: "Drag a piece into the compost (3 times per level). For a breath, hold the button until the circle breathes in and out.", watch: "You get one deep breath per level." },
+      { title: "Seeds and tasks", what: "You earn seeds for stars, daily tasks and the daily bonus.", how: "At the bottom of the home screen you'll find Tasks, Bonus and Shop. A red dot means a reward is waiting.", watch: "Seeds buy rain on demand, an extra breath and +5 moves when you run out." },
       { title: "Trail and Zen", what: "Every level is a marker on a mountain trail. Every 10th is a summit with a camp.", how: "On the trail, tap a marker to play. Zen mode is an endless bed with no goals or move limit.", watch: "The trail never ends: after the Terraces a new, harder lap begins." },
     ],
   };
