@@ -182,7 +182,36 @@ def tiles():
     save_tile(w.transpose(Image.FLIP_LEFT_RIGHT), "weed_1")
 
 
+UI_SCALE = 1 / 8.8               # one art pixel of the sheets becomes one logical pixel in the game
+UI_BUTTONS = {
+    "btn_gold": (50, 45, 535, 240), "btn_gold_down": (65, 285, 520, 465), "btn_stone": (60, 525, 520, 710),
+    "btn_green": (600, 45, 985, 220), "btn_red": (600, 270, 985, 415), "btn_pink": (1020, 45, 1360, 220),
+    "btn_wood": (610, 445, 890, 715), "btn_round": (1045, 450, 1315, 715),
+}
+UI_PANELS = {
+    "panel": (45, 40, 620, 480), "ui_sign": (705, 45, 1320, 365), "ui_sign_small": (70, 475, 580, 720),
+    "ui_bar_empty": (660, 410, 1360, 545), "ui_bar_full": (660, 575, 1175, 720), "ui_close": (1200, 565, 1365, 720),
+}
+
+
+def crisp(im):
+    """Downscaled cut-out snapped to a small palette, so it reads as clean pixel art."""
+    a = np.asarray(im).copy()
+    opaque = a[..., 3] > 0
+    rgb = Image.fromarray(a[..., :3]).quantize(colors=24, method=Image.MEDIANCUT, dither=Image.NONE).convert("RGB")
+    out = np.dstack([np.asarray(rgb), np.where(opaque, 255, 0).astype(np.uint8)])
+    return Image.fromarray(out, "RGBA")
+
+
+def ui():
+    for sheet, boxes in (("ui_buttons.jpg", UI_BUTTONS), ("ui_panels.jpg", UI_PANELS)):
+        k = keyed(Image.open(os.path.join(SRC, sheet)), MAG, erode=1, strict=MAG)
+        for name, box in boxes.items():
+            crisp(shrink(k.crop(box), scale=UI_SCALE)).save(os.path.join(OUT, name + ".png"))
+
+
 if __name__ == "__main__":
+    ui()
     tiles()
     backgrounds()
     hero()

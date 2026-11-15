@@ -13,7 +13,7 @@
 
   // ---------------------------------------------------------------- assets
   const IMG = {};
-  const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "flag", "hero_front", "hero_yoga", "hero_walk_0", "hero_walk_1", "hero_walk_2", "hero_walk_3", "hero_breathe_0", "hero_breathe_1", "hero_jump", "hero_tired",
+  const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "flag", "btn_gold_down", "btn_red", "btn_round", "ui_sign", "ui_sign_small", "ui_bar_empty", "ui_bar_full", "ui_close", "hero_front", "hero_yoga", "hero_walk_0", "hero_walk_1", "hero_walk_2", "hero_walk_3", "hero_breathe_0", "hero_breathe_1", "hero_jump", "hero_tired",
     "camp_tent", "camp_van", "camp_hammock", "camp_fire", "camp_lights", "camp_mat", "camp_mugs", "camp_sign",
     "stone", "stone_cracked", "weed_0", "weed_1", "plastic", "mushroom",
     "bee_0", "bee_1", "sign_open", "sign_current", "sign_done", "sign_locked"];
@@ -176,26 +176,36 @@
     ctx.drawImage(im, Math.round(x), Math.round(y), w, h);
   }
   // 9-slice: border b px of the source
-  function nine(name, x, y, w, h, b) {
+  // 9-slice for rectangular sources. b = border, or [bx, by]. Wooden buttons stretch (their centres are flat colour),
+  // panels and signs tile so wood grain and paper keep their pixel size.
+  const NINE = { btn_gold: [9, 9], btn_gold_down: [9, 9], btn_stone: [9, 9], btn_green: [9, 9], btn_red: [9, 8], btn_pink: [9, 9],
+    btn_wood: [9, 9], btn_round: [10, 10], panel: [13, 13], ui_sign: [16, 18], ui_sign_small: [14, 14], ui_bar_empty: [8, 7], ui_bar_full: [8, 7] };
+  function nine(name, x, y, w, h) {
     const im = IMG[name];
     if (!im || !im.naturalWidth) return;
-    const S = im.naturalWidth, m = S - 2 * b;
+    const Sx = im.naturalWidth, Sy = im.naturalHeight;
+    let [bx, by] = NINE[name] || [8, 8];
     x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
-    const iw = w - 2 * b, ih = h - 2 * b;
-    // tiles the source piece (sx,sy,sw,sh) over (dx,dy,dw,dh) without stretching
-    const tile = (sx, sy, sw, sh, dx, dy, dw, dh) => {
+    bx = Math.min(bx, Math.floor(w / 2)); by = Math.min(by, Math.floor(h / 2));
+    const mx = Sx - 2 * bx, my = Sy - 2 * by, iw = w - 2 * bx, ih = h - 2 * by;
+    const stretch = name.startsWith("btn_");
+    const part = (sx, sy, sw, sh, dx, dy, dw, dh) => {
+      if (dw <= 0 || dh <= 0 || sw <= 0 || sh <= 0) return;
+      if (stretch) { ctx.drawImage(im, sx, sy, sw, sh, dx, dy, dw, dh); return; }
       for (let yy = 0; yy < dh; yy += sh) for (let xx = 0; xx < dw; xx += sw) {
         const cw = Math.min(sw, dw - xx), chh = Math.min(sh, dh - yy);
         ctx.drawImage(im, sx, sy, cw, chh, dx + xx, dy + yy, cw, chh);
       }
     };
-    ctx.drawImage(im, 0, 0, b, b, x, y, b, b);
-    ctx.drawImage(im, S - b, 0, b, b, x + w - b, y, b, b);
-    ctx.drawImage(im, 0, S - b, b, b, x, y + h - b, b, b);
-    ctx.drawImage(im, S - b, S - b, b, b, x + w - b, y + h - b, b, b);
-    if (iw > 0) { tile(b, 0, m, b, x + b, y, iw, b); tile(b, S - b, m, b, x + b, y + h - b, iw, b); }
-    if (ih > 0) { tile(0, b, b, m, x, y + b, b, ih); tile(S - b, b, b, m, x + w - b, y + b, b, ih); }
-    if (iw > 0 && ih > 0) tile(b, b, m, m, x + b, y + b, iw, ih);
+    part(0, 0, bx, by, x, y, bx, by);
+    part(Sx - bx, 0, bx, by, x + w - bx, y, bx, by);
+    part(0, Sy - by, bx, by, x, y + h - by, bx, by);
+    part(Sx - bx, Sy - by, bx, by, x + w - bx, y + h - by, bx, by);
+    part(bx, 0, mx, by, x + bx, y, iw, by);
+    part(bx, Sy - by, mx, by, x + bx, y + h - by, iw, by);
+    part(0, by, bx, my, x, y + by, bx, ih);
+    part(Sx - bx, by, bx, my, x + w - bx, y + by, bx, ih);
+    part(bx, by, mx, my, x + bx, y + by, iw, ih);
   }
   function imgH(name, x, y, h) {           // draw scaled to a given height
     const im = IMG[name];
@@ -206,7 +216,7 @@
   function button(x, y, w, h, label, on, opt = {}) {
     const skin = opt.skin || "btn_green";
     const pressed = st.press && st.press.x >= x && st.press.x <= x + w && st.press.y >= y && st.press.y <= y + h;
-    nine(skin, x, y + (pressed ? 2 : 0), w, h - (pressed ? 2 : 0), 7);
+    nine(pressed && skin === "btn_gold" ? "btn_gold_down" : skin, x, y + (pressed ? 2 : 0), w, h - (pressed ? 2 : 0));
     if (opt.icon) {
       const iw = 13;
       if (label) {
@@ -219,7 +229,10 @@
     } else if (label) text(label, x + w / 2, y + h / 2 - 1 + (pressed ? 2 : 0), opt.size || 8, opt.color || COL.cream);
     st.buttons.push({ x, y, w, h, on, hold: opt.hold });
   }
-  function iconButton(x, y, icon, on, skin = "btn_wood") { button(x, y, 20, 20, "", on, { icon, skin }); }
+  function iconButton(x, y, icon, on, skin = "btn_wood") {
+    if (icon === "i_close") { img("ui_close", x + 1, y + 1, 18, 18); st.buttons.push({ x, y, w: 20, h: 20, on }); return; }
+    button(x, y, 20, 20, "", on, { icon, skin });
+  }
 
   // ---------------------------------------------------------------- background + ambience
   function drawBg(key, plain) {
@@ -701,7 +714,7 @@
   }
 
   function seedPill(x, y) {
-    nine("btn_stone", x, y, 62, 20, 7);
+    nine("btn_stone", x, y, 62, 20);
     img("i_seed", x + 5, y + 2);
     text(String(save.seeds), x + 38, y + 9, 9, COL.gold);
   }
@@ -750,7 +763,7 @@
     ctx.fillStyle = "rgba(14,12,20,0.6)";
     ctx.fillRect(0, 0, W, H);
     const py = Math.round((H - ph) / 2);
-    nine("panel", 10, py, W - 20, ph, 10);
+    nine("panel", 10, py, W - 20, ph);
     text(title, W / 2, py + 19, 13, "#a5303a", "center", null);
     iconButton(W - 36, py + 7, "i_close", () => { st.modal = null; });
     img("i_seed", 20, py + 9);
@@ -765,9 +778,10 @@
         const y = py + 36 + i * 52;
         rect(18, y, W - 36, 46, "rgba(194,177,153,0.4)");
         text(t("task_" + k.id).replace("{n}", k.need), 24, y + 11, 8, COL.brown, "left", null);
-        rect(24, y + 22, 130, 8, "#9c8a76");
-        rect(25, y + 23, Math.round(128 * k.prog / k.need), 6, k.prog >= k.need ? "#6aa64a" : "#e2a92f");
-        text(`${Math.min(k.prog, k.need)}/${k.need}`, 89, y + 38, 7, "#875432", "center", null);
+        nine("ui_bar_empty", 22, y + 20, 134, 14);
+        const fw = Math.round(134 * k.prog / k.need);
+        if (fw >= 16) nine("ui_bar_full", 22, y + 20, fw, 14);
+        text(`${Math.min(k.prog, k.need)}/${k.need}`, 89, y + 27, 7, COL.cream);
         const done = k.prog >= k.need;
         if (k.claimed) { img("i_check", 198, y + 16); }
         else button(166, y + 12, 62, 24, String(k.rew), () => {
@@ -803,7 +817,7 @@
       rows.forEach(([icon, name, sub, key, price], i) => {
         const y = py + 38 + i * 60;
         rect(18, y, W - 36, 54, "rgba(194,177,153,0.4)");
-        nine("btn_stone", 24, y + 8, 24, 24, 7);
+        nine("btn_stone", 24, y + 8, 24, 24);
         img(icon, 29.5, y + 12);
         text(name, 54, y + 12, 9, COL.brown, "left", null);
         text(sub, 54, y + 25, 6.5, "#875432", "left", null);
@@ -859,9 +873,9 @@
       imgH("hero_front", x + 10, y - 34, 38);
     }
     // header
-    nine("panel", 32, TOP + 2, W - 64, 34, 10);
-    text(I18N[save.lang].biomes[biome] + (lap ? ` · ${lap + 1}.` : ""), W / 2, TOP + 15, 11, COL.brown, "center", null);
-    text(`${t("level")} ${page * 10 + 1}–${page * 10 + 10}`, W / 2, TOP + 27, 7, "#875432", "center", null);
+    nine("ui_sign", 30, TOP - 2, W - 60, 40);
+    text(I18N[save.lang].biomes[biome] + (lap ? ` · ${lap + 1}.` : ""), W / 2, TOP + 18, 11, COL.cream);
+    text(`${t("level")} ${page * 10 + 1}–${page * 10 + 10}`, W / 2, TOP + 30, 7, "#f4ecd9", "center", COL.ink);
     iconButton(6, TOP + 8, "i_home", () => { st.mode = "title"; });
     iconButton(W - 26, TOP + 8, "i_gear", () => { st.settings = true; });
     // page arrows
@@ -905,7 +919,7 @@
   // ---------------------------------------------------------------- play screen
   function drawHud() {
     // top panel
-    nine("panel", 4, TOP, W - 8, 48, 10);
+    nine("panel", 4, TOP, W - 8, 48);
     const lv = G.lv;
     if (G.zen) {
       text(t("zen"), 16, TOP + 13, 10, COL.brown, "left", null);
@@ -917,7 +931,7 @@
     // moves
     if (!G.zen) {
       const low = G.moves <= 3;
-      nine("btn_stone", W - 76, TOP + 23, 46, 20, 7);
+      nine("btn_stone", W - 76, TOP + 23, 46, 20);
       img("i_moves", W - 72, TOP + 25);
       text(String(G.moves), W - 46, TOP + 32, 10, low ? (Math.floor(st.time * 4) % 2 ? COL.red : COL.cream) : COL.cream);
     }
@@ -1041,7 +1055,7 @@
     // bottom bar: compost + deep breath
     const cr = compostRect();
     const hot = G.drag && G.drag.type === "user" && dropTarget(G.drag)?.compost;
-    nine(hot ? "btn_gold" : "btn_wood", cr.x, cr.y, cr.w, cr.h, 7);
+    nine(hot ? "btn_gold" : "btn_wood", cr.x, cr.y, cr.w, cr.h);
     img("i_compost", cr.x + 6, cr.y + 4);
     for (let i = 0; i < 3; i++) img(i < G.compost ? "i_leaf" : "i_star_off", cr.x + 22 + i * 15, cr.y + 4, 13, 13);
     // rain booster
@@ -1111,7 +1125,7 @@
       const a = Math.min(1, (st.toast.dur - st.toast.t) * 3);
       ctx.globalAlpha = a;
       const lines = wrap(st.toast.str, 200, 8);
-      nine("panel", W / 2 - 110, BY + 96, 220, 18 + lines.length * 10, 10);
+      nine("panel", W / 2 - 110, BY + 96, 220, 18 + lines.length * 10);
       lines.forEach((l, i) => text(l, W / 2, BY + 108 + i * 10, 8, COL.brown, "center", null));
       ctx.globalAlpha = 1;
     }
@@ -1179,7 +1193,7 @@
     if (!msg) return;
     const lines = wrap(msg, 190, 8);
     const y = G.tut === 0 ? TY - 30 : BY - 2 + BOARD - 30;
-    nine("panel", W / 2 - 105, y - 4, 210, 12 + lines.length * 10, 10);
+    nine("panel", W / 2 - 105, y - 4, 210, 12 + lines.length * 10);
     lines.forEach((l, i) => text(l, W / 2, y + 6 + i * 10, 8, COL.brown, "center", null));
     // animated hand hint from tray to board
     if (G.tut === 0 && !G.drag) {
@@ -1262,7 +1276,7 @@
   function overlayPanel(title, sub, ph = 150) {
     ctx.fillStyle = "rgba(31,22,34,0.45)";
     ctx.fillRect(0, 0, W, H);
-    nine("panel", 16, H / 2 - 92, W - 32, ph, 10);
+    nine("panel", 16, H / 2 - 92, W - 32, ph);
     // the heroine reacts on top of the card
     if (G.over === "win") imgH("hero_jump", W / 2 - 32, H / 2 - 92 - 74 - Math.abs(Math.sin(st.time * 5)) * 10, 78);
     else imgH("hero_tired", W / 2 - 40, H / 2 - 92 - 50, 56);
@@ -1277,7 +1291,7 @@
     const inPlay = st.mode === "play" && G && !G.over && !st.demo;
     const ph = inPlay ? 252 : 196;
     const py = H / 2 - ph / 2;
-    nine("panel", 20, py, W - 40, ph, 10);
+    nine("panel", 20, py, W - 40, ph);
     text(inPlay ? t("paused") : t("settings"), W / 2, py + 18, 13, COL.brown, "center", null);
     iconButton(W - 46, py + 6, "i_close", () => { st.settings = false; st.paused = false; });
     let y = py + 36;
@@ -1321,7 +1335,7 @@
     const sections = [pg.what, pg.how, pg.watch].map((x) => wrap(x, pw - 36, 7));
     const textH = sections.reduce((a, l) => a + 14 + l.length * 9, 0);
     const ph = Math.min(H - 16, 42 + 112 + 12 + textH + 44), py = Math.round((H - ph) / 2);
-    nine("panel", px, py, pw, ph, 10);
+    nine("panel", px, py, pw, ph);
     text(`${t("help")} · ${st.help.page + 1}/${pages.length}`, W / 2, py + 14, 7, "#875432", "center", null);
     text(pg.title, W / 2, py + 28, 13, "#a5303a", "center", null);
     iconButton(px + pw - 26, py + 6, "i_close", closeHelp);
@@ -1394,13 +1408,13 @@
       text(["1", "2", "3"][k] + "/3", x + w / 2, y + h - 14, 9, COL.gold);
       text(["10", "20", "35"][k], x + w - 24, y + h - 14, 9, COL.cream);
     } else if (page === 3) {
-      nine("panel", x + 10, y + 14, w - 20, 40, 10);
+      nine("panel", x + 10, y + 14, w - 20, 40);
       const k = Math.floor(loop(4) * 3);
       img("m_lavender_1", x + 22, y + 27);
       text(String(Math.max(0, 8 - k)), x + 52, y + 34, 10, COL.brown, "center", null);
       img("stone", x + 70, y + 24, 18, 18);
       text(String(Math.max(0, 3 - Math.floor(k / 3))), x + 98, y + 34, 10, COL.brown, "center", null);
-      nine("btn_stone", x + w - 66, y + 24, 46, 20, 7);
+      nine("btn_stone", x + w - 66, y + 24, 46, 20);
       img("i_moves", x + w - 62, y + 26);
       text(String(14 - k), x + w - 36, y + 34, 10, COL.cream);
       for (let i = 0; i < 3; i++) img(i < 1 + Math.floor(loop(4) / 1.4) ? "star_big" : "star_big_off", x + w / 2 - 40 + i * 28, y + 66);
@@ -1427,7 +1441,7 @@
     } else if (page === 6) {
       const k = loop(5) / 5;
       // compost
-      nine("btn_wood", x + 12, y + h - 36, 78, 24, 7);
+      nine("btn_wood", x + 12, y + h - 36, 78, 24);
       img("i_compost", x + 18, y + h - 32);
       for (let i = 0; i < 3; i++) img(i < (k < 0.4 ? 3 : 2) ? "i_leaf" : "i_star_off", x + 36 + i * 15, y + h - 32, 13, 13);
       if (k < 0.4) {

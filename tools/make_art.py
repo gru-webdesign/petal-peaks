@@ -525,14 +525,12 @@ def build_backgrounds():
     import_art.backgrounds()
     import_art.hero()
     import_art.camp()
+    import_art.ui()
 
 
 
 def build_ui():
     from PIL import Image as _I  # noqa
-    write("panel", panel_9slice())
-    for name, ramp, base in (("btn_green", "grass", 4), ("btn_wood", "wood", 4), ("btn_pink", "pink", 3), ("btn_gold", "gold", 3), ("btn_stone", "stone", 3)):
-        write(name, button_9slice(ramp, base))
     names = ["pause", "play", "sound", "mute", "music", "gear", "home", "retry", "map", "close", "breath", "compost",
              "rain", "lock", "star", "star_off", "leaf", "check", "flower", "moves", "lang", "seed", "gift", "tasks", "shop"]
     ics = []
@@ -553,7 +551,7 @@ def build_ui():
         write("sign_" + st, c)
         sp.append(c)
     write("flag", summit_flag())
-    preview("ui", ics + [star_big(), star_big(False), bee(0), bee(1), butterfly(0, "orange"), butterfly(1, "blue")] + hk + sp + [summit_flag(), campfire(0), panel_9slice(), button_9slice("grass", 4), button_9slice("wood", 4)], cols=12)
+    preview("ui", ics + [star_big(), star_big(False), bee(0), bee(1), butterfly(0, "orange"), butterfly(1, "blue")] + hk + sp + [summit_flag()], cols=12)
     from PIL import Image as Im
     ic = app_icon(512)
     os.makedirs(os.path.join(ROOT, "icons"), exist_ok=True)
