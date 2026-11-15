@@ -85,32 +85,52 @@ def hero():
     yoga[1080:, 2170 - 1860:, 3] = 0             # the backpack on the ground is not part of the pose
     shrink(front, 220).save(os.path.join(OUT, "hero_front.png"))
     shrink(Image.fromarray(yoga), 220).save(os.path.join(OUT, "hero_yoga.png"))
-    # walk cycle from the single side view: the legs close and open below the hip line
-    ys, xs = np.nonzero(side[..., 3])
-    top, bot = ys.min(), ys.max()
-    cut = 880
-    hipx = int(xs[(ys > cut) & (ys < cut + 30)].mean())
+    GREY = np.array([203, 203, 205])
+    key = lambda path: np.asarray(keyed(Image.open(os.path.join(SRC, path)), lambda a: np.abs(a - GREY).sum(-1) < 40, erode=2,
+                                        strict=lambda a: np.abs(a - GREY).sum(-1) < 22)).copy()
+    # walk cycle: six frames drawn close together, so each is cut along a boundary that shifts with height
+    w = key("hero_walk.jpg")
+    #         y < 700, 700..1150, y > 1150
+    bounds = [(0, 0, 0), (522, 622, 622), (932, 948, 912), (1338, 1398, 1445), (1692, 1740, 1725), (2012, 2035, 1965), (2576, 2576, 2576)]
+    Y = np.arange(w.shape[0])[:, None]
+    X = np.arange(w.shape[1])[None, :]
+    def edge(b):
+        return np.where(Y < 700, b[0], np.where(Y < 1150, b[1], b[2]))
     frames = []
-    for squeeze, lift in ((1.0, 0), (0.55, 10), (1.0, 0), (0.75, 6)):
-        f = np.zeros_like(side)
-        f[:cut - lift] = side[lift:cut]
-        for y in range(cut, bot + 1):
-            t = (y - cut) / (bot - cut)
-            s = 1 - (1 - squeeze) * t
-            row = side[y]
-            xsrc = np.clip(((np.arange(side.shape[1]) - hipx) / s + hipx).round().astype(int), 0, side.shape[1] - 1)
-            inside = np.abs((np.arange(side.shape[1]) - hipx) / s + hipx - xsrc) < 1
-            f[y - lift if y - lift >= cut - lift else y] = np.where(inside[:, None], row[xsrc], 0)
-        frames.append(Image.fromarray(f))
-    box = Image.fromarray(side).getbbox()
-    box = (box[0] - 4, box[1] - 12, box[2] + 4, box[3])
-    sc = 220 / (box[3] - box[1])
-    for i, f in enumerate(frames):
-        f = f.crop(box)
-        out = f.convert("RGBa").resize((round(f.width * sc), 220), Image.BOX).convert("RGBA")
-        b = np.asarray(out).copy()
-        b[..., 3] = np.where(b[..., 3] > 110, 255, 0)
-        Image.fromarray(b, "RGBA").save(os.path.join(OUT, f"hero_walk_{i}.png"))
+    for i in range(6):
+        f = w.copy()
+        f[..., 3] = np.where((X >= edge(bounds[i])) & (X < edge(bounds[i + 1])), f[..., 3], 0)
+        from scipy import ndimage
+        lab, n = ndimage.label(f[..., 3] > 0)
+        if n > 1:                                   # keep the figure, drop slivers of its neighbours
+            big = 1 + np.argmax(ndimage.sum(f[..., 3] > 0, lab, range(1, n + 1)))
+            f[..., 3] = np.where(lab == big, f[..., 3], 0)
+        ys, xs = np.nonzero(f[..., 3])
+        body = xs[(ys > 450) & (ys < 700)]
+        frames.append((f, int(body.mean()), ys.min(), ys.max()))
+    top = min(fr[2] for fr in frames) - 6
+    bot = max(fr[3] for fr in frames) + 2
+    half = 330
+    sc = 220 / (bot - top)
+    frames = [frames[k] for k in (0, 1, 2, 1)]       # stride, passing, opposite stride, passing (frames 3 and 4 overlap too much to cut cleanly)
+    for i, (f, cx, _, _) in enumerate(frames):
+        x0 = cx - half
+        crop = Image.fromarray(f).crop((x0, top, x0 + 2 * half, bot))
+        out = crop.convert("RGBa").resize((round(2 * half * sc), 220), Image.BOX).convert("RGBA")
+        bb = np.asarray(out).copy()
+        bb[..., 3] = np.where(bb[..., 3] > 110, 255, 0)
+        Image.fromarray(bb, "RGBA").save(os.path.join(OUT, f"hero_walk_{i}.png"))
+    # seated meditation: relaxed and chest lifted (breathing)
+    m = key("hero_meditate.jpg")
+    for i, (x0, x1) in enumerate(((80, 668), (1830, 2480))):
+        shrink(Image.fromarray(m[:, x0:x1]), 200).save(os.path.join(OUT, f"hero_breathe_{i}.png"))
+    # reactions: jump for a win, sitting down tired for a loss
+    r = key("hero_reactions.jpg")
+    shrink(Image.fromarray(r[:, 280:1090]), 230).save(os.path.join(OUT, "hero_jump.png"))
+    tired = r[:, 1360:2440].copy()
+    tired[1085:, 2188 - 1360:, 3] = 0                # backpack on the ground
+    tired[:1085, 2240 - 1360:, 3] = 0
+    shrink(Image.fromarray(tired), 170).save(os.path.join(OUT, "hero_tired.png"))
 
 
 CAMP = {

@@ -13,7 +13,7 @@
 
   // ---------------------------------------------------------------- assets
   const IMG = {};
-  const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "flag", "hero_front", "hero_yoga", "hero_walk_0", "hero_walk_1", "hero_walk_2", "hero_walk_3",
+  const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "flag", "hero_front", "hero_yoga", "hero_walk_0", "hero_walk_1", "hero_walk_2", "hero_walk_3", "hero_breathe_0", "hero_breathe_1", "hero_jump", "hero_tired",
     "camp_tent", "camp_van", "camp_hammock", "camp_fire", "camp_lights", "camp_mat", "camp_mugs", "camp_sign",
     "stone", "stone_cracked", "weed_0", "weed_1", "plastic", "mushroom",
     "bee_0", "bee_1", "sign_open", "sign_current", "sign_done", "sign_locked"];
@@ -1152,10 +1152,11 @@
     }
     ctx.globalAlpha = fade;
     // the heroine in her yoga pose: she rises and widens a little as her chest fills
-    const im = IMG.hero_yoga;
+    // the heroine sits and breathes: chest relaxed, then lifted as it fills
+    const im = k > 0.45 ? IMG.hero_breathe_1 : IMG.hero_breathe_0;
     if (im && im.naturalWidth) {
-      const h = 96 * (1 + k * 0.035), w = im.naturalWidth / im.naturalHeight * 96 * (1 + k * 0.05);
-      ctx.drawImage(im, Math.round(cx - w / 2), Math.round(cy + 44 - h - k * 2), Math.round(w), Math.round(h));
+      const h = 84 * (1 + k * 0.03), w = im.naturalWidth / im.naturalHeight * 84 * (1 + k * 0.02);
+      ctx.drawImage(im, Math.round(cx - w / 2), Math.round(cy + 40 - h - k * 2), Math.round(w), Math.round(h));
     }
     ctx.globalAlpha = 1;
     const left = Math.max(1, Math.ceil(inhale ? BREATH_IN - T : D - T));
@@ -1262,6 +1263,9 @@
     ctx.fillStyle = "rgba(31,22,34,0.45)";
     ctx.fillRect(0, 0, W, H);
     nine("panel", 16, H / 2 - 92, W - 32, ph, 10);
+    // the heroine reacts on top of the card
+    if (G.over === "win") imgH("hero_jump", W / 2 - 32, H / 2 - 92 - 74 - Math.abs(Math.sin(st.time * 5)) * 10, 78);
+    else imgH("hero_tired", W / 2 - 40, H / 2 - 92 - 50, 56);
     text(title, W / 2, H / 2 - 72, 15, "#a5303a", "center", null);
     text(sub, W / 2, H / 2 - 54, 8, "#875432", "center", null);
   }
