@@ -181,6 +181,8 @@
   const NINE = { btn_gold: [9, 9], btn_gold_down: [9, 9], btn_stone: [9, 9], btn_green: [9, 9], btn_red: [9, 8], btn_pink: [9, 9],
     btn_wood: [9, 9], btn_round: [10, 10], panel: [13, 13], ui_sign: [16, 18], ui_sign_small: [14, 14], ui_bar_empty: [8, 7], ui_bar_full: [8, 7] };
   function nine(name, x, y, w, h) {
+    if (name === "panel") { x -= 7; y -= 7; w += 14; h += 14; }
+    if (name === "panel_hud") name = "panel";
     const im = IMG[name];
     if (!im || !im.naturalWidth) return;
     const Sx = im.naturalWidth, Sy = im.naturalHeight;
@@ -919,43 +921,43 @@
   // ---------------------------------------------------------------- play screen
   function drawHud() {
     // top panel
-    nine("panel", 4, TOP, W - 8, 48);
+    nine("panel_hud", -2, TOP - 8, W + 4, 60);
     const lv = G.lv;
     if (G.zen) {
-      text(t("zen"), 16, TOP + 13, 10, COL.brown, "left", null);
-      text(`${t("best")} ${Math.max(save.zenBest, G.score)}`, 16, TOP + 27, 7, "#875432", "left", null);
+      text(t("zen"), 16, TOP + 12, 10, COL.brown, "left", null);
+      text(`${t("best")} ${Math.max(save.zenBest, G.score)}`, 16, TOP + 30, 7, "#875432", "left", null);
     } else {
-      text(`${t("level")} ${G.n}`, 14, TOP + 12, 9, COL.brown, "left", null);
+      text(`${t("level")} ${G.n}`, 16, TOP + 12, 9, COL.brown, "left", null);
     }
-    text(String(G.score), W / 2 + 6, TOP + 12, 11, "#bd7e1e", "center", null);
+    text(String(G.score), W / 2 - 22, TOP + 12, 11, "#bd7e1e", "center", null);
     // moves
     if (!G.zen) {
       const low = G.moves <= 3;
-      nine("btn_stone", W - 76, TOP + 23, 46, 20);
-      img("i_moves", W - 72, TOP + 25);
-      text(String(G.moves), W - 46, TOP + 32, 10, low ? (Math.floor(st.time * 4) % 2 ? COL.red : COL.cream) : COL.cream);
+      nine("btn_stone", W - 106, TOP + 4, 46, 19);
+      img("i_moves", W - 102, TOP + 6);
+      text(String(G.moves), W - 76, TOP + 13, 10, low ? (Math.floor(st.time * 4) % 2 ? COL.red : COL.cream) : COL.cream);
     }
     // goals
     if (!G.zen) {
-      let gx = 12;
+      let gx = 14;
       lv.goals.forEach((g, i) => {
         const done = G.prog[i] >= g.need;
         const w = 50;
-        rect(gx, TOP + 22, w, 20, done ? "rgba(147,196,90,0.45)" : "rgba(194,177,153,0.45)");
-        if (g.type === "bloom") img(`m_${g.sp}_1`, gx + 2, TOP + 25);
-        else if (g.type === "score") img("i_star", gx + 2, TOP + 26);
-        else img(g.type === "stone" ? "stone" : g.type, gx + 1, TOP + 22, 18, 18);
+        rect(gx, TOP + 23, w, 16, done ? "rgba(147,196,90,0.45)" : "rgba(194,177,153,0.45)");
+        if (g.type === "bloom") img(`m_${g.sp}_1`, gx + 1, TOP + 22, 17, 17);
+        else if (g.type === "score") img("i_star", gx + 2, TOP + 25);
+        else img(g.type === "stone" ? "stone" : g.type, gx + 1, TOP + 22, 17, 17);
         const left = Math.max(0, g.need - G.prog[i]);
-        if (done) img("i_check", gx + 26, TOP + 26);
-        else text(g.type === "score" ? String(left) : String(left), gx + 34, TOP + 32, g.type === "score" && left > 999 ? 7 : 9, COL.brown, "center", null);
+        if (done) img("i_check", gx + 26, TOP + 25);
+        else text(g.type === "score" ? String(left) : String(left), gx + 34, TOP + 31, g.type === "score" && left > 999 ? 7 : 9, COL.brown, "center", null);
         gx += w + 4;
       });
     } else {
-      text(`${t("streak")} ${G.streak}`, W - 52, TOP + 32, 8, "#875432", "center", null);
+      text(`${t("streak")} ${G.streak}`, W - 52, TOP + 31, 8, "#875432", "center", null);
     }
     // buttons on the right of the top line
-    iconButton(W - 26, TOP + 2, "i_pause", () => { st.paused = true; st.settings = true; });
-    button(W - 49, TOP + 2, 20, 20, "?", () => openHelp(), { skin: "btn_wood", size: 10 });
+    iconButton(W - 34, TOP + 3, "i_pause", () => { st.paused = true; st.settings = true; });
+    button(W - 57, TOP + 3, 20, 20, "?", () => openHelp(), { skin: "btn_wood", size: 10 });
   }
 
   function drawBoard() {
