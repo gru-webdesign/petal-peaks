@@ -13,7 +13,7 @@ Dugme **?** postoji na svakom ekranu (u igri pauzira) i otvara uputstvo od 8 str
 - **Pčele:** posle svakog cvetanja dolete pčele i ubrzaju rast drugih biljaka.
 - **Prepreke:** kamen (od 31. nivoa i napukli kamen, koji traži dva čišćenja), plastika za reciklažu, korov koji se širi i pečurka koja daje +2 koraka.
 - **Kompost:** komad koji ti ne odgovara prevučeš u kompost i dobiješ novi (3 puta po nivou).
-- **Duboki udah:** drži dugme dok krug ne udahne i izdahne. Vraća poslednji potez, jednom po nivou.
+- **Duboki udah:** dodirni dugme i diši sa junakinjom (tri sekunde udah, tri izdah). Vraća poslednji potez, jednom po nivou.
 - **Zvezdice:** 1 za prolaz, 2 i 3 ako ostane dosta koraka. Preostali koraci postaju bonus poeni.
 - **Zen mod:** beskonačna leja bez ciljeva i koraka, igra se na rekord.
 

@@ -589,6 +589,7 @@
     st.idle = 0;
     st.press = p;
     if (st.demo) { stopDemo(); return; }
+    if (G && G.breath) { G.breath = null; return; }          // a tap during the breath cancels it
     if (st.mode === "play" && G && G.over === "win" && G.moves > 0) { G.skip = true; return; }
     const b = hitButton(p);
     if (b) {
@@ -1051,13 +1052,9 @@
     // breath button (hold)
     const bx = W - 104, by = cr.y;
     const used = (G.breathUsed && !save.breathB) || !G.history;
-    button(bx, by, 94, 24, t("breathe"), null, {
-      skin: used ? "btn_stone" : "btn_pink", size: 7, icon: "i_breath",
-      hold: (down) => {
-        if (down) { if (G.breathUsed && !save.breathB) toast(t("breatheUsed")); else if (!G.history) toast(t("breatheNone")); else { G.breath = { t: 0 }; A.sfx.breathe(true); } }
-        else if (G.breath) { G.breath = null; }
-      },
-    });
+    button(bx, by, 94, 24, t("breathe"), () => {
+      if (G.breathUsed && !save.breathB) toast(t("breatheUsed")); else if (!G.history) toast(t("breatheNone")); else startBreath();
+    }, { skin: used ? "btn_stone" : "btn_pink", size: 7, icon: "i_breath" });
     // the dragged piece follows the finger at full size
     if (G.drag) {
       const pc = G.tray[G.drag.slot];
@@ -1125,18 +1122,48 @@
     if (G.over) drawOver(dt);
   }
 
+  // Deep breath: a short guided breath with the heroine. Three counts in, three counts out, then the last move is undone.
+  const BREATH_IN = 3, BREATH_OUT = 3;
+  function startBreath() { G.breath = { t: 0 }; A.sfx.breathe(true); }
   function drawBreath(dt) {
     G.breath.t += dt;
-    const T = G.breath.t, D = 2.4;
-    const k = T < D / 2 ? T / (D / 2) : 1 - (T - D / 2) / (D / 2);
-    ctx.fillStyle = "rgba(27,42,78,0.45)";
+    const T = G.breath.t, D = BREATH_IN + BREATH_OUT;
+    const inhale = T < BREATH_IN;
+    const ph = inhale ? T / BREATH_IN : 1 - (T - BREATH_IN) / BREATH_OUT;      // 0 empty .. 1 full
+    const k = ph * ph * (3 - 2 * ph);
+    const fade = Math.min(1, T * 3, (D - T) * 3 + 0.2);
+    ctx.fillStyle = `rgba(16,26,48,${0.72 * fade})`;
     ctx.fillRect(0, 0, W, H);
-    const r = 18 + k * 40;
-    ctx.beginPath(); ctx.arc(W / 2, BY + 116, r, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(189,224,248,0.35)"; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = "#bde0f8"; ctx.stroke();
-    text(T < D / 2 ? (save.lang === "sr" ? "udah…" : "breathe in…") : (save.lang === "sr" ? "izdah…" : "breathe out…"), W / 2, BY + 116, 9, COL.cream);
-    if (T > D / 2 && T - dt <= D / 2) A.sfx.breathe(false);
+    const cx = W / 2, cy = Math.round(H * 0.45);
+    // soft rings that swell with the breath
+    for (let i = 3; i >= 0; i--) {
+      const r = 34 + k * 46 + i * 9;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(189,224,248,${(0.08 + (3 - i) * 0.05) * fade})`; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, 34 + k * 46, 0, Math.PI * 2);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(236,246,255,${0.9 * fade})`; ctx.stroke();
+    // petals drift in while breathing in, out while breathing out
+    for (let i = 0; i < 14; i++) {
+      const a = i * 0.45 + T * 0.25, r = 34 + k * 46 + 10 + (inhale ? 1 - (T * 0.6 + i * 0.13) % 1 : (T * 0.6 + i * 0.13) % 1) * 46;
+      ctx.fillStyle = ["#f19cbd", "#f5d14f", "#b39ce3", "#fffaf0"][i % 4];
+      ctx.globalAlpha = 0.8 * fade;
+      ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 2, 2);
+    }
+    ctx.globalAlpha = fade;
+    // the heroine in her yoga pose: she rises and widens a little as her chest fills
+    const im = IMG.hero_yoga;
+    if (im && im.naturalWidth) {
+      const h = 96 * (1 + k * 0.035), w = im.naturalWidth / im.naturalHeight * 96 * (1 + k * 0.05);
+      ctx.drawImage(im, Math.round(cx - w / 2), Math.round(cy + 44 - h - k * 2), Math.round(w), Math.round(h));
+    }
+    ctx.globalAlpha = 1;
+    const left = Math.max(1, Math.ceil(inhale ? BREATH_IN - T : D - T));
+    text(inhale ? t("breatheIn") : t("breatheOut"), cx, cy - 104, 14, COL.cream);
+    text(String(left), cx, cy + 66, 22, COL.gold);
+    text(t("breatheCancel"), cx, H - 30, 7, "rgba(255,250,240,0.7)", "center", null);
+    if (!inhale && T - dt < BREATH_IN) A.sfx.breathe(false);
+    if (Math.ceil(T) !== Math.ceil(T - dt) && T < D) A.sfx.tap();
     if (T >= D) { G.breath = null; deepBreath(); }
   }
 
@@ -1218,10 +1245,7 @@
     const cy = H / 2 - 30;
     let y = cy + 6;
     if (!G.breathUsed && G.history && G.over === "full") {
-      button(W / 2 - 70, y, 140, 26, t("breathe"), null, {
-        skin: "btn_pink", size: 8, icon: "i_breath",
-        hold: (down) => { if (down) { G.breath = { t: 0 }; A.sfx.breathe(true); } else G.breath = null; },
-      });
+      button(W / 2 - 70, y, 140, 26, t("breathe"), () => startBreath(), { skin: "btn_pink", size: 8, icon: "i_breath" });
       text(t("breatheHold"), W / 2, y + 34, 7, "#875432", "center", null);
       y += 44;
     }
