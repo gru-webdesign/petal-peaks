@@ -149,7 +149,7 @@ def camp():
 
 
 TILE = 64                      # tile canvas (2x): the grass patch is 54 wide, flowers may rise above it
-FLOWERS = ["marigold", "cosmos", "edelweiss", "cornflower", "sunflower", "poppy", "daisy"]
+FLOWERS = ["lavender", "marigold", "cosmos", "edelweiss", "cornflower", "sunflower", "poppy", "daisy"]
 MAG = lambda a: (a[..., 0] > 170) & (a[..., 2] > 170) & (a[..., 1] < 130)
 
 
@@ -174,35 +174,12 @@ def tiles():
             save_tile(t, f"p_{name}_{st}")
             if st == 1:
                 save_tile(t.resize((34, 34), Image.BOX), f"m_{name}_1")
-    lavender()
     k = keyed(Image.open(os.path.join(SRC, "obstacles.jpg")), MAG, erode=2, strict=MAG)
     for name, (x0, x1), sc in (("stone", (60, 580), 0.106), ("stone_cracked", (590, 1120), 0.106), ("weed_0", (1130, 1600), 0.1),
                                ("plastic", (1590, 2120), 0.1), ("mushroom", (2140, 2520), 0.13)):
         save_tile(seat(k.crop((x0, 0, x1, k.height)), sc), name)
     w = Image.open(os.path.join(OUT, "weed_0.png"))
     save_tile(w.transpose(Image.FLIP_LEFT_RIGHT), "weed_1")
-
-
-def lavender():
-    """Stand-in until a lavender sheet exists: lavender spikes drawn on the supplied grass patch."""
-    import sys
-    sys.path.insert(0, os.path.dirname(__file__))
-    from pix import Canvas
-    import sprites2 as S
-    for st in range(3):
-        base = np.asarray(Image.open(os.path.join(OUT, f"p_marigold_{min(st, 1)}.png"))).copy()
-        r, g, b = base[..., 0].astype(int), base[..., 1].astype(int), base[..., 2].astype(int)
-        base[(r > 150) & (g < 150) & (r - b > 60), 3] = 0          # drop the orange buds and blooms
-        img = Image.fromarray(base)
-        cv = Canvas(TILE, TILE)
-        spikes = [[(0, 12), (-6, 9), (6, 9)], [(0, 24), (-8, 19), (8, 20), (-3, 16)], [(0, 27), (-9, 22), (9, 23), (-15, 16), (15, 17), (-4, 19), (5, 18)]][st]
-        for ox, h in sorted(spikes, key=lambda q: q[1]):
-            S.spike(cv, 32 + ox, 40, h, ox * 0.25)
-        cv.outline()
-        img.alpha_composite(cv.image())
-        save_tile(img, f"p_lavender_{st}")
-        if st == 1:
-            save_tile(img.resize((34, 34), Image.BOX), "m_lavender_1")
 
 
 if __name__ == "__main__":
