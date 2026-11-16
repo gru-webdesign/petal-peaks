@@ -183,15 +183,24 @@ def tiles():
 
 
 UI_SCALE = 1 / 8.8               # one art pixel of the sheets becomes one logical pixel in the game
-UI_BUTTONS = {
-    "btn_gold": (50, 45, 535, 240), "btn_gold_down": (65, 285, 520, 465), "btn_stone": (60, 525, 520, 710),
-    "btn_green": (600, 45, 985, 220), "btn_red": (600, 270, 985, 415), "btn_pink": (1020, 45, 1360, 220),
-    "btn_wood": (610, 445, 890, 715), "btn_round": (1045, 450, 1315, 715),
+# all-wood UI (ui_wood_buttons.jpg / ui_wood_parts.jpg): (box, scale)
+B = "ui_wood_buttons.jpg"; P = "ui_wood_parts.jpg"; BAR = 1 / 11.8
+UI_CROPS = {
+    "btn_green": (B, (46, 46, 658, 253), UI_SCALE),        # light honey wood, primary
+    "btn_green_down": (B, (46, 551, 658, 722), UI_SCALE),  # light wood, pressed
+    "btn_gold": (B, (46, 298, 658, 470), UI_SCALE),        # medium brown wood, buying
+    "btn_brown": (B, (709, 46, 1110, 188), UI_SCALE),      # medium brown, ordinary
+    "btn_pink": (B, (709, 216, 1110, 370), UI_SCALE),      # dark walnut, Zen / secondary
+    "btn_red": (B, (709, 392, 1110, 546), UI_SCALE),       # cherry, close / danger
+    "btn_stone": (B, (709, 568, 1110, 722), UI_SCALE),     # weathered grey, disabled
+    "btn_wood": (B, (1149, 269, 1362, 493), UI_SCALE),     # square
+    "btn_round": (B, (1149, 521, 1362, 728), UI_SCALE),    # log slice
+    "ui_bar_empty": (P, (70, 70, 1338, 235), BAR),
+    "ui_bar_full": (P, (70, 281, 900, 446), BAR),
+    "ui_close": (P, (105, 510, 276, 687), UI_SCALE),
+    "btn_plate": (P, (375, 510, 822, 698), UI_SCALE),
 }
-UI_PANELS = {
-    "panel": (45, 40, 620, 480), "ui_sign": (705, 45, 1320, 365), "ui_sign_small": (70, 475, 580, 720),
-    "ui_bar_empty": (660, 410, 1360, 545), "ui_bar_full": (660, 575, 1175, 720), "ui_close": (1200, 565, 1365, 720),
-}
+UI_PANELS = {"panel": (45, 40, 620, 480), "ui_sign": (705, 45, 1320, 365), "ui_sign_small": (70, 475, 580, 720)}
 
 
 def crisp(im):
@@ -204,10 +213,14 @@ def crisp(im):
 
 
 def ui():
-    for sheet, boxes in (("ui_buttons.jpg", UI_BUTTONS), ("ui_panels.jpg", UI_PANELS)):
-        k = keyed(Image.open(os.path.join(SRC, sheet)), MAG, erode=1, strict=MAG)
-        for name, box in boxes.items():
-            crisp(shrink(k.crop(box), scale=UI_SCALE)).save(os.path.join(OUT, name + ".png"))
+    k = keyed(Image.open(os.path.join(SRC, "ui_panels.jpg")), MAG, erode=1, strict=MAG)
+    for name, box in UI_PANELS.items():
+        crisp(shrink(k.crop(box), scale=UI_SCALE)).save(os.path.join(OUT, name + ".png"))
+    sheets = {}
+    for name, (sheet, box, scale) in UI_CROPS.items():
+        if sheet not in sheets:
+            sheets[sheet] = keyed(Image.open(os.path.join(SRC, sheet)), MAG, erode=1, strict=MAG)
+        crisp(shrink(sheets[sheet].crop(box), scale=scale)).save(os.path.join(OUT, name + ".png"))
 
 
 if __name__ == "__main__":

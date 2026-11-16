@@ -13,7 +13,7 @@
 
   // ---------------------------------------------------------------- assets
   const IMG = {};
-  const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "flag", "btn_gold_down", "btn_red", "btn_round", "ui_sign", "ui_sign_small", "ui_bar_empty", "ui_bar_full", "ui_close", "hero_front", "hero_yoga", "hero_walk_0", "hero_walk_1", "hero_walk_2", "hero_walk_3", "hero_breathe_0", "hero_breathe_1", "hero_jump", "hero_tired",
+  const names = ["panel", "btn_green", "btn_wood", "btn_pink", "btn_gold", "btn_stone", "star_big", "star_big_off", "flag", "btn_green_down", "btn_brown", "btn_plate", "btn_red", "btn_round", "ui_sign", "ui_sign_small", "ui_bar_empty", "ui_bar_full", "ui_close", "hero_front", "hero_yoga", "hero_walk_0", "hero_walk_1", "hero_walk_2", "hero_walk_3", "hero_breathe_0", "hero_breathe_1", "hero_jump", "hero_tired",
     "camp_tent", "camp_van", "camp_hammock", "camp_fire", "camp_lights", "camp_mat", "camp_mugs", "camp_sign",
     "stone", "stone_cracked", "weed_0", "weed_1", "plastic", "mushroom",
     "bee_0", "bee_1", "sign_open", "sign_current", "sign_done", "sign_locked"];
@@ -178,8 +178,9 @@
   // 9-slice: border b px of the source
   // 9-slice for rectangular sources. b = border, or [bx, by]. Wooden buttons stretch (their centres are flat colour),
   // panels and signs tile so wood grain and paper keep their pixel size.
-  const NINE = { btn_gold: [9, 9], btn_gold_down: [9, 9], btn_stone: [9, 9], btn_green: [9, 9], btn_red: [9, 8], btn_pink: [9, 9],
-    btn_wood: [9, 9], btn_round: [10, 10], panel: [13, 13], ui_sign: [16, 18], ui_sign_small: [14, 14], ui_bar_empty: [8, 7], ui_bar_full: [8, 7] };
+  const NINE = { btn_green: [9, 9], btn_green_down: [8, 8], btn_gold: [8, 8], btn_brown: [7, 7], btn_pink: [8, 8], btn_red: [8, 8],
+    btn_stone: [8, 8], btn_wood: [7, 7], btn_round: [10, 10], btn_plate: [6, 6], panel: [13, 13], ui_sign: [16, 18], ui_sign_small: [14, 14],
+    ui_bar_empty: [6, 5], ui_bar_full: [6, 5] };
   function nine(name, x, y, w, h) {
     if (name === "panel") { x -= 7; y -= 7; w += 14; h += 14; }
     if (name === "panel_hud") name = "panel";
@@ -218,7 +219,7 @@
   function button(x, y, w, h, label, on, opt = {}) {
     const skin = opt.skin || "btn_green";
     const pressed = st.press && st.press.x >= x && st.press.x <= x + w && st.press.y >= y && st.press.y <= y + h;
-    nine(pressed && skin === "btn_gold" ? "btn_gold_down" : skin, x, y + (pressed ? 2 : 0), w, h - (pressed ? 2 : 0));
+    nine(pressed && skin === "btn_green" ? "btn_green_down" : skin, x, y + (pressed ? 2 : 0), w, h - (pressed ? 2 : 0));
     if (opt.icon) {
       const iw = 13;
       if (label) {
@@ -710,13 +711,13 @@
       img(`m_${sp}_1`, x - 8, y - 8);
     });
     ctx.globalAlpha = 1;
-    text("HIKE &", cx, cy - 12 + bob, 30, COL.pink, "center", COL.ink);
-    text("BLOOM", cx, cy + 18 + bob, 30, COL.gold, "center", COL.ink);
+    text("HIKE &", cx, cy - 12 + bob, 30, COL.paper, "center", COL.ink);
+    text("BLOOM", cx, cy + 18 + bob, 30, COL.green, "center", COL.ink);
     text(t("tagline"), cx, cy + 44, 8, COL.cream);
   }
 
   function seedPill(x, y) {
-    nine("btn_stone", x, y, 62, 20);
+    nine("btn_plate", x, y, 62, 20);
     img("i_seed", x + 5, y + 2);
     text(String(save.seeds), x + 38, y + 9, 9, COL.gold);
   }
@@ -800,12 +801,12 @@
         const col = i % 4, row = Math.floor(i / 4);
         const x = 18 + col * 54, y = py + 36 + row * 62, w = big ? 104 : 50;
         const got = ready ? i < cur : i <= cur;
-        rect(x, y, w, 56, i === cur && ready ? "rgba(245,209,79,0.75)" : got ? "rgba(147,196,90,0.5)" : "rgba(194,177,153,0.45)");
-        if (i === cur && ready) { ctx.strokeStyle = "#bd7e1e"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 55); }
-        text(`${t("day")} ${i + 1}`, x + w / 2, y + 9, 7, COL.brown, "center", null);
+        if (i === cur && ready) nine("btn_plate", x, y, w, 56); else rect(x, y, w, 56, got ? "rgba(147,196,90,0.5)" : "rgba(194,177,153,0.45)");
+        const today = i === cur && ready;
+        text(`${t("day")} ${i + 1}`, x + w / 2, y + 9, 7, today ? COL.cream : COL.brown, "center", today ? COL.ink : null);
         img("i_seed", x + w / 2 - (big ? 20 : 6.5), y + 18);
         if (big) img("i_rain", x + w / 2 + 6, y + 18);
-        text(String(BONUS[i]) + (big ? " +1" : ""), x + w / 2, y + 43, 9, "#bd7e1e", "center", null);
+        text(String(BONUS[i]) + (big ? " +1" : ""), x + w / 2, y + 43, 9, today ? COL.cream : "#8a5426", "center", today ? COL.ink : null);
         if (got) img("i_check", x + w - 15, y + 2);
       }
       if (ready) button(W / 2 - 60, py + 166, 120, 28, t("claim"), () => claimBonus(), { skin: "btn_green", size: 11, icon: "i_gift" });
@@ -819,7 +820,7 @@
       rows.forEach(([icon, name, sub, key, price], i) => {
         const y = py + 38 + i * 60;
         rect(18, y, W - 36, 54, "rgba(194,177,153,0.4)");
-        nine("btn_stone", 24, y + 8, 24, 24);
+        nine("btn_wood", 24, y + 8, 24, 24);
         img(icon, 29.5, y + 12);
         text(name, 54, y + 12, 9, COL.brown, "left", null);
         text(sub, 54, y + 25, 6.5, "#875432", "left", null);
@@ -933,7 +934,7 @@
     // moves
     if (!G.zen) {
       const low = G.moves <= 3;
-      nine("btn_stone", W - 106, TOP + 4, 46, 19);
+      nine("btn_plate", W - 106, TOP + 4, 46, 19);
       img("i_moves", W - 102, TOP + 6);
       text(String(G.moves), W - 76, TOP + 13, 10, low ? (Math.floor(st.time * 4) % 2 ? COL.red : COL.cream) : COL.cream);
     }
@@ -1322,7 +1323,7 @@
     button(36, y, W - 72, 20, armed ? t("resetSure") : t("reset"), () => {
       if (armed) { const lang = save.lang; Object.assign(save, { unlocked: 1, stars: {}, zenBest: 0, tutDone: false, lang }); persist(); st.resetArm = 0; st.settings = false; st.mode = "title"; G = null; }
       else st.resetArm = st.time + 3;
-    }, { skin: "btn_stone", size: 7 });
+    }, { skin: "btn_red", size: 7 });
   }
 
   // ---------- help with animated mini videos
@@ -1416,7 +1417,7 @@
       text(String(Math.max(0, 8 - k)), x + 52, y + 34, 10, COL.brown, "center", null);
       img("stone", x + 70, y + 24, 18, 18);
       text(String(Math.max(0, 3 - Math.floor(k / 3))), x + 98, y + 34, 10, COL.brown, "center", null);
-      nine("btn_stone", x + w - 66, y + 24, 46, 20);
+      nine("btn_plate", x + w - 66, y + 24, 46, 20);
       img("i_moves", x + w - 62, y + 26);
       text(String(14 - k), x + w - 36, y + 34, 10, COL.cream);
       for (let i = 0; i < 3; i++) img(i < 1 + Math.floor(loop(4) / 1.4) ? "star_big" : "star_big_off", x + w / 2 - 40 + i * 28, y + 66);
