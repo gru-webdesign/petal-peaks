@@ -46,7 +46,7 @@
   // ---------------------------------------------------------------- save
   const SAVE_KEY = "petal-peaks-v1";
   const save = Object.assign({ lang: null, unlocked: 1, stars: {}, zenBest: 0, music: true, sound: true, vib: true, tutDone: false,
-    seeds: 0, tasksDay: "", tasks: [], bonusDay: "", bonusStreak: 0, rainB: 1, breathB: 0 }, (() => {
+    seeds: 0, tasksDay: "", tasks: [], bonusDay: "", bonusStreak: 0, rainB: 1, breathB: 0, style: "3d" }, (() => {
     try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (e) { return {}; }
   })());
   function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
@@ -140,11 +140,17 @@
   window.addEventListener("resize", fit);
 
   // ---------------------------------------------------------------- drawing helpers
-  function setFont(size) { ctx.font = `400 ${Math.round(size * 1.45)}px "Jersey 10", monospace`; }
+  const SOFT = () => save.style === "3d";
+  function setFont(size) {
+    ctx.font = SOFT() ? `600 ${Math.round(size * 1.12 * 2) / 2}px "Fredoka", sans-serif` : `400 ${Math.round(size * 1.45)}px "Jersey 10", monospace`;
+  }
   function text(str, x, y, size = 8, color = COL.cream, align = "center", outline = COL.ink, base = "middle") {
     setFont(size);
     ctx.textAlign = align; ctx.textBaseline = base;
-    if (outline) {
+    if (outline && SOFT()) {
+      ctx.strokeStyle = outline; ctx.lineJoin = "round"; ctx.lineWidth = Math.max(1.6, size / 4.5);
+      ctx.strokeText(str, x, y + 0.5);
+    } else if (outline) {
       ctx.fillStyle = outline;
       const o = Math.max(1, Math.round(size / 9)) * 0.75;
       for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o], [-o, -o], [o, o], [-o, o], [o, -o], [0, o * 1.6]]) ctx.fillText(str, x + dx, y + dy);
@@ -962,6 +968,7 @@
   }
 
   function drawBoard() {
+    if (SOFT()) return drawBoard3d();
     const ox = st.shake ? (Math.random() - 0.5) * st.shake * 3 : 0, oy = st.shake ? (Math.random() - 0.5) * st.shake * 3 : 0;
     ctx.save();
     ctx.translate(Math.round(ox), Math.round(oy));
@@ -1036,19 +1043,164 @@
     ctx.restore();
   }
 
+
+  // ---------------------------------------------------------------- soft 3D style (vector, drawn at full screen resolution)
+  function rr(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function grad(y0, y1, a, b) { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, a); g.addColorStop(1, b); return g; }
+  const EARTH = {   // grass cap, its darker rim, soil side, soil shade
+    plant: ["#8fd16a", "#5fa846", "#9a6638", "#6e4526"],
+    weed: ["#7f9c47", "#56702f", "#8a5c33", "#5f3e22"],
+    mush: ["#8fd16a", "#5fa846", "#9a6638", "#6e4526"],
+    plastic: ["#c7c08a", "#9c9563", "#9a6638", "#6e4526"],
+    stone: ["#b9b4aa", "#8b867d", "#7d786f", "#57534d"],
+    stone2: ["#aaa499", "#7d786f", "#6f6a62", "#4b4843"],
+  };
+  // an earth clod: grass on top, soil showing on the front face
+  function clod(X, Y, s, kind, alpha = 1) {
+    const [top, rim, soil, shade] = EARTH[kind] || EARTH.plant;
+    const d = Math.max(2.5, s * 0.24), r = s * 0.2, x = X + s * 0.05, w = s * 0.9, y = Y + s * 0.03, h = s * 0.94;
+    ctx.globalAlpha = alpha * 0.35; rr(x + 1, y + 2, w, h, r); ctx.fillStyle = "#0d1410"; ctx.fill();   // contact shadow
+    ctx.globalAlpha = alpha;
+    rr(x, y, w, h, r); ctx.fillStyle = grad(y + h - d * 2, y + h, soil, shade); ctx.fill();                // soil block
+    if (kind !== "stone" && kind !== "stone2") {                                                         // soil grains
+      ctx.fillStyle = shade;
+      for (let i = 0; i < 4; i++) { const gx = x + w * (0.18 + i * 0.2), gy = y + h - d * (0.35 + (i % 2) * 0.3); ctx.fillRect(gx, gy, s * 0.05, s * 0.05); }
+    }
+    rr(x, y, w, h - d, r); ctx.fillStyle = grad(y, y + h - d, top, rim); ctx.fill();                       // grass cap
+    if (kind !== "stone" && kind !== "stone2") {                                                         // grass fringe over the soil
+      ctx.fillStyle = rim; ctx.beginPath();
+      for (let i = 0; i <= 6; i++) { const fx = x + r * 0.6 + (w - r * 1.2) * i / 6; ctx.moveTo(fx - s * 0.05, y + h - d - 0.5); ctx.lineTo(fx, y + h - d + s * 0.07); ctx.lineTo(fx + s * 0.05, y + h - d - 0.5); }
+      ctx.fill();
+    }
+    ctx.globalAlpha = alpha * 0.45; rr(x + w * 0.1, y + s * 0.06, w * 0.5, s * 0.12, s * 0.06); ctx.fillStyle = "#fffaf0"; ctx.fill(); // shine
+    ctx.globalAlpha = alpha;
+    return { cx: x + w / 2, cy: y + (h - d) / 2 };
+  }
+  function ellipse(x, y, rx, ry, rot, c) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot, 0, 7); ctx.fillStyle = c; ctx.fill(); }
+  function leaf(x, y, l, a, c) { ellipse(x + Math.cos(a) * l * 0.5, y + Math.sin(a) * l * 0.5, l * 0.5, l * 0.22, a, c); }
+  const PETALS = { daisy: 8, edelweiss: 6, cosmos: 8, sunflower: 12, lavender: 5, poppy: 5, cornflower: 7, marigold: 9 };
+  function flower3d(cx, cy, s, sp, stage, t = 0) {
+    const [c0, c1, c2] = PETAL[sp] || PETAL.daisy;
+    const sway = Math.sin(st.time * 2 + cx * 0.3) * 0.08;
+    if (stage === 0) {                    // sprout with a bud of its colour
+      leaf(cx, cy + s * 0.12, s * 0.34, -2.4 + sway, "#2d6a2a"); leaf(cx, cy + s * 0.12, s * 0.34, -0.7 + sway, "#357a30");
+      ellipse(cx, cy - s * 0.04, s * 0.1, s * 0.12, 0, c0); ellipse(cx - s * 0.03, cy - s * 0.08, s * 0.03, s * 0.04, 0, "rgba(255,250,240,0.6)");
+      return;
+    }
+    const R = s * (stage === 2 ? 0.36 : 0.28);
+    if (stage === 2) { leaf(cx, cy + R * 0.4, R * 1.3, 2.6 + sway, "#3f8a3a"); leaf(cx, cy + R * 0.4, R * 1.3, 0.5 + sway, "#4f9e41"); }
+    const n = PETALS[sp] || 6, rot = sway + (sp.length % 3) * 0.3;
+    ctx.globalAlpha *= 1; 
+    for (let i = 0; i < n; i++) {        // petal shadows then petals
+      const a = rot + i * Math.PI * 2 / n;
+      ellipse(cx + Math.cos(a) * R * 0.55, cy + 0.8 + Math.sin(a) * R * 0.55, R * 0.48, R * (n > 8 ? 0.2 : 0.3), a, "rgba(0,0,0,0.18)");
+    }
+    for (let i = 0; i < n; i++) {
+      const a = rot + i * Math.PI * 2 / n;
+      const px = cx + Math.cos(a) * R * 0.55, py = cy + Math.sin(a) * R * 0.55;
+      ellipse(px, py, R * 0.48, R * (n > 8 ? 0.2 : 0.3), a, i % 2 ? c1 : c0);
+    }
+    const core = sp === "daisy" || sp === "edelweiss" || sp === "cosmos" ? "#f2c34a" : sp === "sunflower" ? "#6b4226" : sp === "poppy" ? "#2a1d22" : c2;
+    ellipse(cx, cy, R * 0.3, R * 0.3, 0, core);
+    ellipse(cx - R * 0.09, cy - R * 0.1, R * 0.11, R * 0.09, 0, "rgba(255,250,240,0.55)");
+  }
+  function cell3d(c, X, Y, s, alpha = 1) {
+    const kind = c.k === "plant" ? "plant" : c.k;
+    const { cx, cy } = clod(X, Y, s, kind, alpha);
+    if (c.k === "plant") flower3d(cx, cy, s, c.sp, stageOf(c));
+    else if (c.k === "stone2") {
+      ctx.strokeStyle = "#3f3c38"; ctx.lineWidth = Math.max(0.7, s * 0.04); ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(cx - s * 0.22, cy - s * 0.2); ctx.lineTo(cx - s * 0.02, cy - s * 0.02); ctx.lineTo(cx - s * 0.1, cy + s * 0.12); ctx.moveTo(cx - s * 0.02, cy - s * 0.02); ctx.lineTo(cx + s * 0.2, cy + s * 0.04); ctx.stroke();
+    } else if (c.k === "stone") {
+      ellipse(cx + s * 0.12, cy + s * 0.08, s * 0.08, s * 0.05, 0, "rgba(0,0,0,0.12)"); ellipse(cx - s * 0.15, cy - s * 0.1, s * 0.06, s * 0.04, 0, "rgba(0,0,0,0.1)");
+    } else if (c.k === "weed") {
+      const sw = Math.sin(st.time * 1.5 + X) * 0.12;
+      for (const [a, l, col] of [[-2.0, 0.42, "#3d5a1f"], [-1.57, 0.5, "#4a6b26"], [-1.1, 0.42, "#3d5a1f"], [-2.6, 0.3, "#55772c"], [-0.5, 0.3, "#55772c"]]) {
+        ctx.beginPath(); const ax = cx, ay = cy + s * 0.18, aa = a + sw;
+        ctx.moveTo(ax - s * 0.05, ay); ctx.lineTo(ax + Math.cos(aa) * s * l, ay + Math.sin(aa) * s * l); ctx.lineTo(ax + s * 0.05, ay); ctx.fillStyle = col; ctx.fill();
+      }
+    } else if (c.k === "plastic") {
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.6);
+      rr(-s * 0.25, -s * 0.11, s * 0.4, s * 0.22, s * 0.08); ctx.fillStyle = "rgba(150,205,235,0.85)"; ctx.fill();
+      rr(s * 0.13, -s * 0.06, s * 0.1, s * 0.12, s * 0.02); ctx.fill();
+      rr(s * 0.22, -s * 0.06, s * 0.06, s * 0.12, s * 0.02); ctx.fillStyle = "#3f7fc0"; ctx.fill();
+      rr(-s * 0.2, -s * 0.07, s * 0.28, s * 0.04, s * 0.02); ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.fill();
+      ctx.restore();
+    } else if (c.k === "mush") {
+      rr(cx - s * 0.06, cy - s * 0.02, s * 0.12, s * 0.2, s * 0.04); ctx.fillStyle = "#f4ecd9"; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx, cy, s * 0.24, s * 0.18, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = "#d9493c"; ctx.fill();
+      ellipse(cx - s * 0.1, cy - s * 0.08, s * 0.035, s * 0.03, 0, "#fffaf0"); ellipse(cx + s * 0.07, cy - s * 0.11, s * 0.03, s * 0.025, 0, "#fffaf0"); ellipse(cx + s * 0.02, cy - s * 0.04, s * 0.025, s * 0.02, 0, "#fffaf0");
+    }
+    ctx.globalAlpha = 1;
+  }
+  function drawBoard3d() {
+    const ox = st.shake ? (Math.random() - 0.5) * st.shake * 3 : 0, oy = st.shake ? (Math.random() - 0.5) * st.shake * 3 : 0;
+    ctx.save(); ctx.translate(ox, oy);
+    const bx = BX, by = BY;
+    // see-through bed with soft rounded cells
+    rr(bx - 4, by - 4, BOARD + 8, BOARD + 8, 10); ctx.fillStyle = "rgba(16,28,22,0.32)"; ctx.fill();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = "rgba(255,250,240,0.55)"; ctx.stroke();
+    for (let y = 0; y < 9; y++) for (let x = 0; x < 9; x++) {
+      const dark = (Math.floor(x / 3) + Math.floor(y / 3)) % 2 === 0;
+      rr(cellX(x) + 1.5, cellY(y) + 1.5, CELL - 3, CELL - 3, 5);
+      ctx.fillStyle = dark ? "rgba(255,250,240,0.16)" : "rgba(255,250,240,0.09)"; ctx.fill();
+    }
+    let ghost = null, clears = null;
+    if (G.drag) {
+      const tgt = dropTarget(G.drag), pc = G.tray[G.drag.slot];
+      if (tgt && !tgt.compost && pc) {
+        ghost = { tgt, pc };
+        if (tgt.ok) {
+          const b = G.board.slice();
+          for (const [cx, cy] of pc.p.cells) b[idx(tgt.x + cx, tgt.y + cy)] = { k: "plant" };
+          clears = findClears(b).cells;
+        }
+      }
+    }
+    for (let y = 0; y < 9; y++) for (let x = 0; x < 9; x++) {
+      const c = G.board[idx(x, y)];
+      if (!c) continue;
+      const age = st.time - G.bornAt[idx(x, y)];
+      if (age < 0) continue;
+      const drop = age < 0.18 ? -(1 - age / 0.18) * 9 : age < 0.3 ? Math.sin((age - 0.18) / 0.12 * Math.PI) * 1.6 : 0;
+      cell3d(c, cellX(x), cellY(y) + drop, CELL);
+    }
+    if (clears && clears.size) {
+      const a = 0.28 + Math.sin(st.time * 10) * 0.12;
+      for (const k of clears) { rr(cellX(k % 9) + 1, cellY(Math.floor(k / 9)) + 1, CELL - 2, CELL - 2, 6); ctx.fillStyle = `rgba(255,250,225,${a})`; ctx.fill(); }
+    }
+    if (ghost && ghost.tgt.ok) for (const [cx, cy] of ghost.pc.p.cells) {
+      const X = ghost.tgt.x + cx, Y = ghost.tgt.y + cy;
+      if (X >= 0 && Y >= 0 && X < 9 && Y < 9) cell3d({ k: "plant", sp: ghost.pc.sp, age: 3 }, cellX(X), cellY(Y), CELL, 0.45);
+    }
+    for (const f of st.fx) {
+      const c = { k: "plant", sp: f.sp, age: f.stage === 2 ? 7 : 3 };
+      if (f.t < 0) { cell3d(c, f.x, f.y, CELL); continue; }
+      const k = f.t / 0.55, sc = 1 + Math.sin(Math.min(1, k * 1.6) * Math.PI) * 0.35, sz = CELL * sc;
+      cell3d(c, f.x + CELL / 2 - sz / 2, f.y + CELL / 2 - sz / 2, sz, Math.max(0, 1 - k * k));
+    }
+    ctx.restore();
+  }
+
   function drawPiece(pc, cx, cy, size, imgPrefix) {
     const w = pc.p.wd * size, h = pc.p.ht * size;
     const cells = pc.p.cells.slice().sort((a, b) => a[1] - b[1]);
+    if (SOFT()) { for (const [x, y] of cells) cell3d({ k: "plant", sp: pc.sp, age: 3 }, cx - w / 2 + x * size, cy - h / 2 + y * size, size); return; }
     for (const [x, y] of cells) tile(imgPrefix(pc), cx - w / 2 + x * size, cy - h / 2 + y * size, size);
   }
   function drawTray() {
     // soft panel behind the tray
-    ctx.fillStyle = "rgba(31,22,34,0.5)";
-    ctx.fillRect(4, TY - 2, W - 8, 80);
+    if (SOFT()) { rr(4, TY - 2, W - 8, 80, 10); ctx.fillStyle = "rgba(20,30,24,0.42)"; ctx.fill(); }
+    else { ctx.fillStyle = "rgba(31,22,34,0.5)"; ctx.fillRect(4, TY - 2, W - 8, 80); }
     for (let s = 0; s < 3; s++) {
       const pc = G.tray[s];
       const cx = slotX(s), cy = TY + 39;
-      rect(cx - 37, TY + 2, 74, 72, "rgba(244,236,217,0.24)");
+      if (SOFT()) { rr(cx - 37, TY + 2, 74, 72, 8); ctx.fillStyle = "rgba(255,250,240,0.13)"; ctx.fill(); }
+      else rect(cx - 37, TY + 2, 74, 72, "rgba(244,236,217,0.24)");
       if (!pc || (G.drag && G.drag.slot === s)) continue;
       const fits = fitsAnywhere(pc);
       ctx.globalAlpha = fits ? 1 : 0.4;
@@ -1292,7 +1444,7 @@
     ctx.fillStyle = "rgba(31,22,34,0.5)";
     ctx.fillRect(0, 0, W, H);
     const inPlay = st.mode === "play" && G && !G.over && !st.demo;
-    const ph = inPlay ? 252 : 196;
+    const ph = inPlay ? 278 : 222;
     const py = H / 2 - ph / 2;
     nine("panel", 20, py, W - 40, ph);
     text(inPlay ? t("paused") : t("settings"), W / 2, py + 18, 13, COL.brown, "center", null);
@@ -1308,6 +1460,9 @@
     row(t("vibration"), save.vib, () => { save.vib = !save.vib; persist(); vib(20); });
     text(t("language"), 36, y + 10, 8, COL.brown, "left", null);
     button(W - 100, y, 64, 20, save.lang === "sr" ? "SRPSKI" : "ENGLISH", () => { save.lang = save.lang === "sr" ? "en" : "sr"; persist(); }, { skin: "btn_wood", size: 7 });
+    y += 26;
+    text(t("style"), 36, y + 10, 8, COL.brown, "left", null);
+    button(W - 100, y, 64, 20, SOFT() ? "3D" : "PIXEL", () => { save.style = SOFT() ? "pixel" : "3d"; persist(); }, { skin: "btn_wood", size: 8 });
     y += 30;
     if (inPlay) {
       button(36, y, W - 72, 24, t("resume"), () => { st.settings = false; st.paused = false; }, { skin: "btn_green", size: 9, icon: "i_play" });
@@ -1499,7 +1654,7 @@
   }
 
   fit();
-  ready.then(() => document.fonts && Promise.all([document.fonts.load('400 14px "Jersey 10"'), document.fonts.load('400 14px "Jersey 10"', "šđčćž")])).catch(() => {}).then(() => {
+  ready.then(() => document.fonts && Promise.all([document.fonts.load('400 14px "Jersey 10"'), document.fonts.load('400 14px "Jersey 10"', "šđčćž"), document.fonts.load('600 14px "Fredoka"'), document.fonts.load('600 14px "Fredoka"', "šđčćž")])).catch(() => {}).then(() => {
     st.mode = save.lang ? "title" : "lang";
     requestAnimationFrame(frame);
   });
