@@ -1317,6 +1317,7 @@
       text(t("demo"), W / 2, BB + 38 > H - 6 ? H - 8 : BB + 38, 8, COL.gold);
     }
     if (G.over) drawOver(dt);
+    if (st.modal) { st.buttons = []; drawModal(); drawParts(); }
   }
 
   // Deep breath: a short guided breath with the heroine. Three counts in, three counts out, then the last move is undone.
@@ -2033,31 +2034,39 @@
     if (J.camp) return { n: Math.floor(idle / 1.6) % 2 ? "h_wave" : "h_front", flip: false };
     return { n: "h_front", flip: false };
   }
-  const BODYX = {};
-  function bodyCenter(im, name) {          // horizontal centre of the hips/legs, so arms and hair don't shift her
-    if (BODYX[name] !== undefined) return BODYX[name];
+  // every pose is measured once: the horizontal centre of the hips and the height from the top of the head
+  // to the soles, taken in a narrow column over the body, so raised arms or a jump don't change her size
+  const BODY = {};
+  function bodyOf(im, name) {
+    if (BODY[name]) return BODY[name];
+    const r = { cx: 0.5, top: 0, bot: 1 };
     try {
-      const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const c = document.createElement("canvas"), w = c.width = im.naturalWidth, h = c.height = im.naturalHeight;
       const x = c.getContext("2d"); x.drawImage(im, 0, 0);
-      const y0 = Math.round(c.height * 0.5), y1 = Math.round(c.height * 0.62);
-      const d = x.getImageData(0, y0, c.width, y1 - y0).data;
+      const d = x.getImageData(0, 0, w, h).data, A = (px, py) => d[(py * w + px) * 4 + 3] > 128;
       let sum = 0, n = 0;
-      for (let i = 3; i < d.length; i += 4) if (d[i] > 128) { sum += ((i - 3) / 4) % c.width; n++; }
-      BODYX[name] = n ? sum / n / c.width : 0.5;
-    } catch (e) { BODYX[name] = 0.5; }
-    return BODYX[name];
+      for (let py = Math.round(h * 0.5); py < h * 0.62; py++) for (let px = 0; px < w; px++) if (A(px, py)) { sum += px; n++; }
+      const cx = n ? sum / n : w / 2, half = w * 0.09;
+      let top = 0, bot = h - 1;
+      outer: for (let py = 0; py < h; py++) for (let px = Math.max(0, Math.round(cx - half)); px < Math.min(w, cx + half); px++) if (A(px, py)) { top = py; break outer; }
+      outer2: for (let py = h - 1; py >= 0; py--) for (let px = 0; px < w; px++) if (A(px, py)) { bot = py; break outer2; }
+      r.cx = cx / w; r.top = top / h; r.bot = (bot + 1) / h;
+    } catch (e) { /* keep defaults */ }
+    BODY[name] = r;
+    return r;
   }
   function drawHero(name, x, y, h, flip, bob = 0) {
     const im = P3(name);
     if (!im) return;
-    const k = name === "h_win" || name === "h_jump" ? 1.05 : name === "h_wave" ? 0.94 : 1;
-    const hh = h * k * (im.naturalHeight / 560), w = im.naturalWidth * hh / im.naturalHeight;
-    const bx = bodyCenter(im, name) * w;
+    const b = bodyOf(im, name), sit = name === "h_sit" || name === "h_in" || name === "h_out";
+    const target = sit ? h * 0.62 : h;                  // seated poses are shorter on purpose
+    const hh = target / (b.bot - b.top), w = im.naturalWidth * hh / im.naturalHeight;
+    const bx = b.cx * w;
     ctx.fillStyle = "rgba(15,25,10,0.3)"; ctx.beginPath(); ctx.ellipse(x, y, h * 0.16, h * 0.04, 0, 0, 7); ctx.fill();
     ctx.save(); ctx.translate(x, y - bob);
     if (flip) ctx.scale(-1, 1);
     const jump = name === "h_jump" ? Math.abs(Math.sin(st.time * 5)) * h * 0.08 : 0;
-    ctx.drawImage(im, -bx, -hh - jump, w, hh);
+    ctx.drawImage(im, -bx, -hh * b.bot - jump, w, hh);
     ctx.restore();
   }
   function confetti(t) {
@@ -2214,7 +2223,8 @@
     const lv = G.lv;
     button3(8, TOP + 3, 26, 26, "", () => { st.paused = true; st.settings = true; }, { skin: "btn_wood", icon: "i_pause" });
     button3(W - 34, TOP + 3, 26, 26, "", () => openHelp(), { skin: "btn_wood", icon: "i_help" });
-    const gx0 = 40, gw = W - 80;
+    button3(W - 63, TOP + 3, 26, 26, "", () => { st.modal = "shop"; }, { skin: "btn_wood", icon: "i_shop" });
+    const gx0 = 40, gw = W - 109;
     fillRR(gx0, TOP + 3, gw, 24, 12, C3.surf);
     if (G.zen) {
       text(`${t("zen")} · ${t("best")} ${Math.max(save.zenBest, G.score)}`, W / 2, TOP + 15, 8, C3.ink, "center", null);
