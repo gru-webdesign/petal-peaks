@@ -1,7 +1,7 @@
 // Offline cache: network first (so updates arrive), cache as fallback.
-const CACHE = "pp-v13";
+const CACHE = "pp-v14";
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["./", "index.html", "src/i18n.js", "src/levels.js", "src/audio.js", "src/game.js"])).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["./", "index.html", "src/i18n.js", "src/levels.js", "src/trails.js", "src/audio.js", "src/game.js"])).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

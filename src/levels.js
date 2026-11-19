@@ -44,18 +44,18 @@
     { key: "meadow",   species: ["daisy", "poppy", "cornflower", "cosmos"],      sky: "#8db6df", ink: "#264a30" },
     { key: "lavender", species: ["lavender", "sunflower", "poppy", "daisy"],     sky: "#f2a46a", ink: "#47306e" },
     { key: "alpine",   species: ["edelweiss", "cornflower", "daisy", "lavender"], sky: "#5d86c2", ink: "#2c2d3a" },
-    { key: "forest",   species: ["cosmos", "daisy", "cornflower", "marigold"],   sky: "#78c9a8", ink: "#13363a" },
     { key: "canyon",   species: ["marigold", "sunflower", "cosmos", "poppy"],    sky: "#dc7568", ink: "#5a240f" },
-    { key: "terraces", species: ["cosmos", "lavender", "marigold", "cornflower"], sky: "#f19cbd", ink: "#4f1a3a" },
+    { key: "terraces", species: ["cosmos", "lavender", "marigold", "cornflower"], sky: "#78c9a8", ink: "#13363a" },
+    { key: "volcano",  species: ["poppy", "marigold", "edelweiss", "sunflower"],  sky: "#f19cbd", ink: "#4f1a3a" },
   ];
 
-  // Level n (1-based). Ten markers per biome, the tenth is the summit.
+  // Level n (1-based). Twenty levels per mountain, the twentieth is the summit.
   function make(n) {
     const r = rng(n * 7919 + 17);
-    const lap = Math.floor((n - 1) / 60);          // every 60 levels the whole trail repeats, harder
-    const biome = Math.floor((n - 1) / 10) % BIOMES.length;
-    const idx = (n - 1) % 10;                      // 0..9
-    const summit = idx === 9;
+    const lap = Math.floor((n - 1) / 120);         // every 120 levels (six mountains) the round repeats, harder
+    const biome = Math.floor((n - 1) / 20) % BIOMES.length;
+    const idx = (n - 1) % 20;                      // 0..19
+    const summit = idx === 19;
     const B = BIOMES[biome];
     const diff = Math.min(1, (n - 1) / 80) + lap * 0.1; // 0 .. ~1.2
     const pick = (arr) => arr[Math.floor(r() * arr.length)];

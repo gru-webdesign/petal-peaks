@@ -20,7 +20,7 @@
   for (const i of ["pause", "play", "sound", "mute", "music", "gear", "home", "retry", "map", "close", "breath", "compost", "rain", "lock", "star", "star_off", "leaf", "check", "flower", "moves", "lang", "seed", "gift", "tasks", "shop"]) names.push("i_" + i);
   for (const c of ["orange", "blue", "pink"]) for (let f = 0; f < 2; f++) names.push(`fly_${c}_${f}`);
   for (const sp of L.SPECIES) { for (let s = 0; s < 3; s++) names.push(`p_${sp}_${s}`); names.push(`m_${sp}_1`); }
-  for (const b of L.BIOMES) names.push("bg_" + b.key);
+  for (const b of L.BIOMES) if (b.key !== "volcano") names.push("bg_" + b.key);
   let loaded = 0;
   const ready = new Promise((res) => {
     for (const n of names) {
@@ -33,7 +33,7 @@
 
   // petal colours per species (for particles)
   const PETAL = {
-    lavender: ["#8a6fc4", "#b39ce3", "#644a99"], poppy: ["#d24b44", "#ef7c5f", "#a5303a"],
+    lavender: ["#8a6fc4", "#b39ce3", "#644a99"], poppy: ["#d24b44", "#ef7c5f", "#1E3A2B"],
     daisy: ["#fffaf0", "#f4ecd9", "#f5d14f"], sunflower: ["#f5d14f", "#e2a92f", "#935f40"],
     cornflower: ["#4f86c9", "#7db2e6", "#365fa3"], edelweiss: ["#fffaf0", "#e2d5bd", "#9cb565"],
     cosmos: ["#f19cbd", "#d86b9a", "#f5d14f"], marigold: ["#f6ab55", "#e5812e", "#bf5a1d"],
@@ -133,14 +133,14 @@
     const need = TOP + 52 + BOARD + 8 + 78 + 34;
     const extra = Math.max(0, H - need);
     BX = (W - BOARD) / 2;
-    BY = TOP + 52 + Math.round(extra * 0.45);
+    BY = TOP + 80 + Math.round(Math.max(0, extra - 28) * 0.45);
     TY = BY + BOARD + 6 + Math.round(extra * 0.2);
     BB = TY + 78;
   }
   window.addEventListener("resize", fit);
 
   // ---------------------------------------------------------------- drawing helpers
-  const SOFT = () => save.style === "3d";
+  const SOFT = () => true;
   function setFont(size) {
     ctx.font = SOFT() ? `600 ${Math.round(size * 1.12 * 2) / 2}px "Fredoka", sans-serif` : `400 ${Math.round(size * 1.45)}px "Jersey 10", monospace`;
   }
@@ -176,6 +176,9 @@
     img(name, x - 5 * k, y - 9.5 * k, 64 * k, 64 * k);
   } // authored at 2x for extra detail
   function img(name, x, y, w, h) {
+    if (name.startsWith("i_")) { drawIcon(name.slice(2), x, y + 1, w || 13); return; }
+    if (name === "star_big" || name === "star_big_off") { star3(x + 16, y + 15, 15, name === "star_big"); return; }
+    if (name.startsWith("m_")) { plantIcon(name.slice(2, -2), x, y, w || 16, h || 16); return; }
     const im = IMG[name];
     if (!im || !im.complete || !im.naturalWidth) return;
     if (!w) { const k = HI.test(name) ? 2 : 1; w = im.naturalWidth / k; h = im.naturalHeight / k; }
@@ -188,6 +191,7 @@
     btn_stone: [8, 8], btn_wood: [7, 7], btn_round: [10, 10], btn_plate: [6, 6], panel: [13, 13], ui_sign: [16, 18], ui_sign_small: [14, 14],
     ui_bar_empty: [6, 5], ui_bar_full: [6, 5] };
   function nine(name, x, y, w, h) {
+    if (SOFT()) { nine3(name, x, y, w, h); return; }
     if (name === "panel") { x -= 7; y -= 7; w += 14; h += 14; }
     if (name === "panel_hud") name = "panel";
     const im = IMG[name];
@@ -223,6 +227,7 @@
   }
   function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
   function button(x, y, w, h, label, on, opt = {}) {
+    if (SOFT()) { button3(x, y, w, h, label, on, opt); return; }
     const skin = opt.skin || "btn_green";
     const pressed = st.press && st.press.x >= x && st.press.x <= x + w && st.press.y >= y && st.press.y <= y + h;
     nine(pressed && skin === "btn_green" ? "btn_green_down" : skin, x, y + (pressed ? 2 : 0), w, h - (pressed ? 2 : 0));
@@ -239,12 +244,14 @@
     st.buttons.push({ x, y, w, h, on, hold: opt.hold });
   }
   function iconButton(x, y, icon, on, skin = "btn_wood") {
+    if (SOFT()) { button3(x, y, 22, 22, "", on, { icon, skin: icon === "i_close" ? "btn_pink" : skin }); return; }
     if (icon === "i_close") { img("ui_close", x + 1, y + 1, 18, 18); st.buttons.push({ x, y, w: 20, h: 20, on }); return; }
     button(x, y, 20, 20, "", on, { icon, skin });
   }
 
   // ---------------------------------------------------------------- background + ambience
   function drawBg(key, plain) {
+    if (SOFT()) { playBg(st.mode === "play" && G && !G.zen ? G.n : 0); return; }
     // illustration is 252x552; cover the screen, anchored to the top (the dark foreground sits under the tray)
     const k = Math.max(1, H / 552);
     img("bg_" + key, (W - W * k) / 2, 0, W * k, 552 * k);
@@ -513,6 +520,7 @@
     const share = G.bonusStart / G.lv.moves;
     G.stars = share >= 0.45 ? 3 : share >= 0.25 ? 2 : 1;
     const n = G.n;
+    G.advanced = n === save.unlocked;
     save.stars[n] = Math.max(save.stars[n] || 0, G.stars);
     save.unlocked = Math.max(save.unlocked, n + 1);
     if (G.lv.tutorial) save.tutDone = true;
@@ -707,6 +715,7 @@
   }
 
   function logo(cx, cy) {
+    if (SOFT()) { text("Hike &", cx, cy - 12, 26, "#F6FAF1", "center", C3.ink); text("Bloom", cx, cy + 16, 29, "#9BD978", "center", C3.ink); return; }
     const bob = Math.sin(st.time * 1.4) * 2;
     // flowers framing the title
     const fl = ["cosmos", "lavender", "poppy", "sunflower", "daisy", "cornflower"];
@@ -734,7 +743,7 @@
   }
   function navBar() {
     const items = [
-      ["i_map", t("trail"), () => { st.mode = "map"; st.page = Math.floor((save.unlocked - 1) / 10); }, false],
+      ["i_map", t("trail"), () => { enterJourney(false); }, false],
       ["i_tasks", t("tasks"), () => { st.modal = "tasks"; }, tasksReady()],
       ["i_gift", t("bonus"), () => { st.modal = "bonus"; }, bonusReady()],
       ["i_shop", t("shop"), () => { st.modal = "shop"; }, false],
@@ -749,6 +758,7 @@
     });
   }
   function drawTitle() {
+    if (SOFT()) { drawTitle3d(st.dt || 0.016); return; }
     drawBg("meadow");
     rect(0, 0, W, H, "rgba(20,16,26,0.16)");
     seedPill(6, TOP + 2);
@@ -773,10 +783,10 @@
     ctx.fillRect(0, 0, W, H);
     const py = Math.round((H - ph) / 2);
     nine("panel", 10, py, W - 20, ph);
-    text(title, W / 2, py + 19, 13, "#a5303a", "center", null);
+    text(title, W / 2, py + 19, 13, "#1E3A2B", "center", null);
     iconButton(W - 36, py + 7, "i_close", () => { st.modal = null; });
     img("i_seed", 20, py + 9);
-    text(String(save.seeds), 36, py + 16, 9, "#bd7e1e", "left", null);
+    text(String(save.seeds), 36, py + 16, 9, "#B9781C", "left", null);
     return py;
   }
   function drawModal() {
@@ -790,7 +800,7 @@
         nine("ui_bar_empty", 22, y + 20, 134, 14);
         const fw = Math.round(134 * k.prog / k.need);
         if (fw >= 16) nine("ui_bar_full", 22, y + 20, fw, 14);
-        text(`${Math.min(k.prog, k.need)}/${k.need}`, 89, y + 27, 7, COL.cream);
+        text(`${Math.min(k.prog, k.need)}/${k.need}`, 89, y + 27, 7, C3.ink, "center", null);
         const done = k.prog >= k.need;
         if (k.claimed) { img("i_check", 198, y + 16); }
         else button(166, y + 12, 62, 24, String(k.rew), () => {
@@ -798,7 +808,7 @@
           k.claimed = true; addSeeds(k.rew, 196, y + 20);
         }, { skin: done ? "btn_green" : "btn_stone", size: 9, icon: "i_seed" });
       });
-      text(t("newTasks"), W / 2, py + 200, 7, "#875432", "center", null);
+      text(t("newTasks"), W / 2, py + 200, 7, "#4E6656", "center", null);
     } else if (st.modal === "bonus") {
       const py = modalFrame(t("dailyBonus"), 222);
       const cur = bonusIndex(), ready = bonusReady();
@@ -809,14 +819,14 @@
         const got = ready ? i < cur : i <= cur;
         if (i === cur && ready) nine("btn_plate", x, y, w, 56); else rect(x, y, w, 56, got ? "rgba(147,196,90,0.5)" : "rgba(194,177,153,0.45)");
         const today = i === cur && ready;
-        text(`${t("day")} ${i + 1}`, x + w / 2, y + 9, 7, today ? COL.cream : COL.brown, "center", today ? COL.ink : null);
+        text(`${t("day")} ${i + 1}`, x + w / 2, y + 9, 7, today ? C3.acc : COL.brown, "center", null);
         img("i_seed", x + w / 2 - (big ? 20 : 6.5), y + 18);
         if (big) img("i_rain", x + w / 2 + 6, y + 18);
-        text(String(BONUS[i]) + (big ? " +1" : ""), x + w / 2, y + 43, 9, today ? COL.cream : "#8a5426", "center", today ? COL.ink : null);
+        text(String(BONUS[i]) + (big ? " +1" : ""), x + w / 2, y + 43, 9, today ? C3.acc : "#4E6656", "center", null);
         if (got) img("i_check", x + w - 15, y + 2);
       }
       if (ready) button(W / 2 - 60, py + 166, 120, 28, t("claim"), () => claimBonus(), { skin: "btn_green", size: 11, icon: "i_gift" });
-      else wrap(t("comeBack"), 200, 8).forEach((l, i) => text(l, W / 2, py + 176 + i * 11, 8, "#875432", "center", null));
+      else wrap(t("comeBack"), 200, 8).forEach((l, i) => text(l, W / 2, py + 176 + i * 11, 8, "#4E6656", "center", null));
     } else if (st.modal === "shop") {
       const py = modalFrame(t("shop"), 170);
       const rows = [
@@ -829,8 +839,8 @@
         nine("btn_wood", 24, y + 8, 24, 24);
         img(icon, 29.5, y + 12);
         text(name, 54, y + 12, 9, COL.brown, "left", null);
-        text(sub, 54, y + 25, 6.5, "#875432", "left", null);
-        text(`${t("owned")}: ${save[key]}`, 54, y + 40, 7, "#2c7a6c", "left", null);
+        text(sub, 54, y + 25, 6.5, "#4E6656", "left", null);
+        text(`${t("owned")}: ${save[key]}`, 54, y + 40, 7, "#2A6A1E", "left", null);
         button(166, y + 26, 62, 22, String(price), () => { if (spend(price)) { save[key]++; persist(); sparks(196, y + 36, 10); } },
           { skin: save.seeds >= price ? "btn_gold" : "btn_stone", size: 9, icon: "i_seed" });
       });
@@ -922,21 +932,22 @@
     text(t("camp"), W / 2, cy - 34, 16, COL.gold);
     text(`${t("summit")} ${G.n} · ${I18N[save.lang].biomes[biome]}`, W / 2, cy - 15, 8, COL.cream);
     wrap(t("campSub"), 210, 8).forEach((l, i) => text(l, W / 2, cy + 178 + i * 11, 8, COL.paper));
-    button(W / 2 - 60, cy + 206, 120, 28, t("newTrail"), () => { st.mode = "map"; st.page = Math.floor((save.unlocked - 1) / 10); }, { skin: "btn_green", size: 10, icon: "i_map" });
+    button(W / 2 - 60, cy + 206, 120, 28, t("newTrail"), () => { enterJourney(false); }, { skin: "btn_green", size: 10, icon: "i_map" });
   }
 
   // ---------------------------------------------------------------- play screen
   function drawHud() {
+    if (SOFT()) { drawHud3d(); return; }
     // top panel
     nine("panel_hud", -2, TOP - 8, W + 4, 60);
     const lv = G.lv;
     if (G.zen) {
       text(t("zen"), 16, TOP + 12, 10, COL.brown, "left", null);
-      text(`${t("best")} ${Math.max(save.zenBest, G.score)}`, 16, TOP + 30, 7, "#875432", "left", null);
+      text(`${t("best")} ${Math.max(save.zenBest, G.score)}`, 16, TOP + 30, 7, "#4E6656", "left", null);
     } else {
       text(`${t("level")} ${G.n}`, 16, TOP + 12, 9, COL.brown, "left", null);
     }
-    text(String(G.score), W / 2 - 22, TOP + 12, 11, "#bd7e1e", "center", null);
+    text(String(G.score), W / 2 - 22, TOP + 12, 11, "#B9781C", "center", null);
     // moves
     if (!G.zen) {
       const low = G.moves <= 3;
@@ -960,7 +971,7 @@
         gx += w + 4;
       });
     } else {
-      text(`${t("streak")} ${G.streak}`, W - 52, TOP + 31, 8, "#875432", "center", null);
+      text(`${t("streak")} ${G.streak}`, W - 52, TOP + 31, 8, "#4E6656", "center", null);
     }
     // buttons on the right of the top line
     iconButton(W - 34, TOP + 3, "i_pause", () => { st.paused = true; st.settings = true; });
@@ -1250,7 +1261,7 @@
         if (c && c.k === "plant") { c.age += 3; sparks(tx, ty + 6, 6, COL.gold); }
         b.leave = true; b.t = 0;
       }
-      img("bee_" + (Math.floor(st.time * 14 + b.ph) % 2), b.x - 5, b.y - 4);
+      if (SOFT()) bee3(b.x, b.y, b.ph); else img("bee_" + (Math.floor(st.time * 14 + b.ph) % 2), b.x - 5, b.y - 4);
     }
     st.bees = st.bees.filter((b) => !(b.leave && b.t > 1.4));
   }
@@ -1393,11 +1404,11 @@
       }
       text(`${t("score")} ${G.score}`, W / 2 - 30, cy + 38, 10, COL.brown, "center", null);
       img("i_seed", W / 2 + 22, cy + 31);
-      text("+" + (G.seedsWon || 0), W / 2 + 50, cy + 38, 10, "#bd7e1e", "center", null);
+      text("+" + (G.seedsWon || 0), W / 2 + 50, cy + 38, 10, "#B9781C", "center", null);
       const summit = G.lv.summit;
-      button(W / 2 - 100, cy + 56, 96, 26, t("map"), () => { st.mode = "map"; st.page = Math.floor((G.n - 1) / 10); }, { skin: "btn_wood", size: 9, icon: "i_map" });
+      button(W / 2 - 100, cy + 56, 96, 26, t("map"), () => { enterJourney(false); }, { skin: "btn_wood", size: 9, icon: "i_map" });
       button(W / 2 + 4, cy + 56, 96, 26, t("next"), () => {
-        if (summit) { st.mode = "camp"; A.sfx.chime(); } else newGame(G.n + 1);
+        if (G.advanced) enterJourney(true); else newGame(Math.min(save.unlocked, G.n + 1));
       }, { skin: "btn_green", size: 9, icon: "i_play" });
       return;
     }
@@ -1416,7 +1427,7 @@
     let y = cy + 6;
     if (!G.breathUsed && G.history && G.over === "full") {
       button(W / 2 - 70, y, 140, 26, t("breathe"), () => startBreath(), { skin: "btn_pink", size: 8, icon: "i_breath" });
-      text(t("breatheHold"), W / 2, y + 34, 7, "#875432", "center", null);
+      text(t("breatheHold"), W / 2, y + 34, 7, "#4E6656", "center", null);
       y += 44;
     }
     if (G.over === "moves") {
@@ -1425,7 +1436,7 @@
       }, { skin: save.seeds >= PRICE.moves ? "btn_gold" : "btn_stone", size: 9, icon: "i_seed" });
       y += 30;
     }
-    button(W / 2 - 100, y + 6, 96, 26, t("map"), () => { st.mode = "map"; st.page = Math.floor((G.n - 1) / 10); }, { skin: "btn_wood", size: 9, icon: "i_map" });
+    button(W / 2 - 100, y + 6, 96, 26, t("map"), () => { enterJourney(false); }, { skin: "btn_wood", size: 9, icon: "i_map" });
     button(W / 2 + 4, y + 6, 96, 26, t("retry"), () => newGame(G.n), { skin: "btn_green", size: 9, icon: "i_retry" });
   }
   function overlayPanel(title, sub, ph = 150) {
@@ -1433,10 +1444,13 @@
     ctx.fillRect(0, 0, W, H);
     nine("panel", 16, H / 2 - 92, W - 32, ph);
     // the heroine reacts on top of the card
-    if (G.over === "win") imgH("hero_jump", W / 2 - 32, H / 2 - 92 - 74 - Math.abs(Math.sin(st.time * 5)) * 10, 78);
+    if (SOFT()) {
+      if (G.over === "win") drawHero("h_jump", W / 2, H / 2 - 90, 92, false);
+      else drawHero("h_tired", W / 2, H / 2 - 90, 80, false);
+    } else if (G.over === "win") imgH("hero_jump", W / 2 - 32, H / 2 - 92 - 74 - Math.abs(Math.sin(st.time * 5)) * 10, 78);
     else imgH("hero_tired", W / 2 - 40, H / 2 - 92 - 50, 56);
-    text(title, W / 2, H / 2 - 72, 15, "#a5303a", "center", null);
-    text(sub, W / 2, H / 2 - 54, 8, "#875432", "center", null);
+    text(title, W / 2, H / 2 - 72, 15, "#1E3A2B", "center", null);
+    text(sub, W / 2, H / 2 - 54, 8, "#4E6656", "center", null);
   }
 
   // ---------- pause / settings
@@ -1444,7 +1458,7 @@
     ctx.fillStyle = "rgba(31,22,34,0.5)";
     ctx.fillRect(0, 0, W, H);
     const inPlay = st.mode === "play" && G && !G.over && !st.demo;
-    const ph = inPlay ? 278 : 222;
+    const ph = inPlay ? 252 : 196;
     const py = H / 2 - ph / 2;
     nine("panel", 20, py, W - 40, ph);
     text(inPlay ? t("paused") : t("settings"), W / 2, py + 18, 13, COL.brown, "center", null);
@@ -1461,16 +1475,14 @@
     text(t("language"), 36, y + 10, 8, COL.brown, "left", null);
     button(W - 100, y, 64, 20, save.lang === "sr" ? "SRPSKI" : "ENGLISH", () => { save.lang = save.lang === "sr" ? "en" : "sr"; persist(); }, { skin: "btn_wood", size: 7 });
     y += 26;
-    text(t("style"), 36, y + 10, 8, COL.brown, "left", null);
-    button(W - 100, y, 64, 20, SOFT() ? "3D" : "PIXEL", () => { save.style = SOFT() ? "pixel" : "3d"; persist(); }, { skin: "btn_wood", size: 8 });
-    y += 30;
+    y += 4;
     if (inPlay) {
       button(36, y, W - 72, 24, t("resume"), () => { st.settings = false; st.paused = false; }, { skin: "btn_green", size: 9, icon: "i_play" });
       y += 28;
       button(36, y, (W - 76) / 2, 24, t("retry"), () => { st.settings = false; newGame(G.n, { zen: G.zen }); }, { skin: "btn_wood", size: 8, icon: "i_retry" });
       button(40 + (W - 76) / 2, y, (W - 76) / 2, 24, G.zen ? t("home") : t("map"), () => {
         st.settings = false; st.paused = false;
-        if (G.zen) { st.mode = "title"; G = null; } else { st.mode = "map"; st.page = Math.floor((G.n - 1) / 10); }
+        if (G.zen) { st.mode = "title"; G = null; } else { enterJourney(false); }
       }, { skin: "btn_wood", size: 8, icon: G.zen ? "i_home" : "i_map" });
       y += 30;
     }
@@ -1494,8 +1506,8 @@
     const textH = sections.reduce((a, l) => a + 14 + l.length * 9, 0);
     const ph = Math.min(H - 16, 42 + 112 + 12 + textH + 44), py = Math.round((H - ph) / 2);
     nine("panel", px, py, pw, ph);
-    text(`${t("help")} · ${st.help.page + 1}/${pages.length}`, W / 2, py + 14, 7, "#875432", "center", null);
-    text(pg.title, W / 2, py + 28, 13, "#a5303a", "center", null);
+    text(`${t("help")} · ${st.help.page + 1}/${pages.length}`, W / 2, py + 14, 7, "#4E6656", "center", null);
+    text(pg.title, W / 2, py + 28, 13, "#1E3A2B", "center", null);
     iconButton(px + pw - 26, py + 6, "i_close", closeHelp);
     // video
     const vx = px + 14, vy = py + 42, vw = pw - 28, vh = 112;
@@ -1507,7 +1519,7 @@
     // text sections
     let y = vy + vh + 12;
     const labels = save.lang === "sr" ? ["ŠTA", "KAKO", "PAZI"] : ["WHAT", "HOW", "WATCH"];
-    const cols = ["#2c7a6c", "#bf5a1d", "#a5303a"];
+    const cols = ["#2A6A1E", "#bf5a1d", "#1E3A2B"];
     sections.forEach((lines, i) => {
       text(labels[i], px + 16, y, 7, cols[i], "left", null);
       y += 10;
@@ -1625,15 +1637,568 @@
   }
 
   // ---------------------------------------------------------------- loop
+  // ================================================================ soft 3D layer
+  // Everything below draws the "animated film" look: textured earth clods with generated plants, vector UI,
+  // and the journey up each mountain through its six scenes.
+  const C3 = {
+    ink: "#1E3A2B", muted: "#4E6656", surf: "#EEF3E6", white: "#FFFFFF", edge: "#C5D3B4", acc: "#3E8F2C", acce: "#2A6A1E",
+    amber: "#F2B64B", amberE: "#B9781C", red: "#C2412F", redE: "#8E2C1F", stone: "#DCE3D3", stoneE: "#B9C6AD", sky: "#2F6FA8",
+  };
+  const TR = window.TRAILS;
+  COL.brown = C3.ink; COL.gold = "#F2B64B";
+  const CUM = TR.perScene.reduce((a, n) => (a.push(a[a.length - 1] + n), a), [0]);   // [0,3,7,11,14,17,20]
+  const IMG3 = {};
+  function im3(file) {             // lazy loader for assets/3d
+    let im = IMG3[file];
+    if (!im) { im = new Image(); im.src = `assets/3d/${file}`; IMG3[file] = im; }
+    return im.complete && im.naturalWidth ? im : null;
+  }
+  const P3 = (n) => im3(n + ".png");
+  // warm up the files every screen needs
+  ["tex_grass.jpg", "tex_soil.jpg"].forEach(im3);
+  for (const sp of L.SPECIES) for (let s = 0; s < 3; s++) P3(`p3_${sp}_${s}`);
+  ["stone", "stone2", "weed", "plastic", "mush"].forEach((n) => P3("o3_" + n));
+  ["front", "back", "sideL", "sideR", "q_front", "wave", "sit", "tired", "jump", "win", "in", "out", "look", "drink"].forEach((n) => P3("h_" + n));
+  for (let i = 0; i < 4; i++) { P3("h_back_" + i); P3("h_qback_" + i); P3("h_walk_" + i); P3("flag_" + i); }
+
+  function rrc(c, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+  }
+  function fillRR(x, y, w, h, r, col) { rrc(ctx, x, y, w, h, r); ctx.fillStyle = col; ctx.fill(); }
+
+  // ---------- icons (Tabler outline paths, 24px grid)
+  const ICON_D = {
+    pause: "M6 5h4v14h-4z M14 5h4v14h-4z",
+    play: "M7 4v16l13-8z",
+    sound: "M15 8a5 5 0 0 1 0 8 M17.7 5a9 9 0 0 1 0 14 M6 15h-2a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2l3.5-4.5a.8.8 0 0 1 1.5.5v14a.8.8 0 0 1-1.5.5l-3.5-4.5",
+    mute: "M6 15h-2a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2l3.5-4.5a.8.8 0 0 1 1.5.5v14a.8.8 0 0 1-1.5.5l-3.5-4.5 M16 10l4 4m0-4l-4 4",
+    music: "M3 17a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M13 17a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M9 17V4h10v13 M9 8h10",
+    gear: "M14 6a2 2 0 1 0-4 0a2 2 0 1 0 4 0 M4 6h6 M14 6h6 M10 12a2 2 0 1 0-4 0a2 2 0 1 0 4 0 M4 12h2 M10 12h10 M19 18a2 2 0 1 0-4 0a2 2 0 1 0 4 0 M4 18h11 M19 18h1",
+    home: "M5 12H3l9-9 9 9h-2 M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7 M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6",
+    retry: "M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4 M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4",
+    map: "M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7 M9 4v13 M15 7v13",
+    close: "M18 6L6 18 M6 6l12 12",
+    breath: "M5 8h8.5a2.5 2.5 0 1 0-2.34-3.24 M3 12h15.5a2.5 2.5 0 1 1-2.34 3.24 M4 16h5.5a2.5 2.5 0 1 1-2.34 3.24",
+    compost: "M12 17l-2 2l2 2 M10 19h9a2 2 0 0 0 1.75-2.75l-.55-1 M8.536 11l-.732-2.732L5.072 9 M7.804 8.268l-4.5 7.794a2 2 0 0 0 1.506 2.89l1.141.024 M15.464 11l2.732.732L18.928 9 M18.196 11.732l-4.5-7.794a2 2 0 0 0-3.256-.14l-.591.976",
+    rain: "M7 18a4.6 4.4 0 0 1 0-9 5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7 M11 13v2m0 3v2m4-5v2m0 3v2",
+    lock: "M5 13a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z M11 16a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M8 11V7a4 4 0 1 1 8 0v4",
+    leaf: "M5 21c.5-4.5 2.5-8 7-10 M9 18c6.218 0 10.5-3.288 11-12V4h-4.014c-9 0-11.986 4-12 9 0 1 0 3 2 5h3z",
+    check: "M5 12l5 5L20 7",
+    flower: "M12 3a3 3 0 0 1 3 3c0 .6-.2 1.2-.5 1.7A3 3 0 1 1 15 13.5a3 3 0 1 1-6 0A3 3 0 1 1 9.5 7.7 3 3 0 0 1 12 3z M12 10a1 1 0 1 0 0 2a1 1 0 1 0 0-2 M12 16v5",
+    moves: "M13 4a1 1 0 1 0 0-2a1 1 0 1 0 0 2 M7 21l3-4 M16 21l-2-4-3-3 1-6 M6 12l2-3 4-1 3 3 3 1",
+    lang: "M4 5h7 M9 3v2c0 4.418-2.239 8-5 8 M5 9c0 2.144 2.952 3.908 6.7 4 M12 20l4-9 4 9 M19.1 18h-6.2",
+    seed: "M12 10a6 6 0 0 0-6-6H3v2a6 6 0 0 0 6 6h3 M12 14a6 6 0 0 1 6-6h3v1a6 6 0 0 1-6 6h-3 M12 20V10",
+    gift: "M3 9a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z M12 8v13 M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7 M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5",
+    tasks: "M3.5 5.5l1.5 1.5 2.5-2.5 M3.5 11.5l1.5 1.5 2.5-2.5 M3.5 17.5l1.5 1.5 2.5-2.5 M11 6h9 M11 12h9 M11 18h9",
+    shop: "M6.331 8h11.339a2 2 0 0 1 1.977 2.304l-1.255 8.152a3 3 0 0 1-2.966 2.544H8.574a3 3 0 0 1-2.965-2.544l-1.255-8.152A2 2 0 0 1 6.331 8z M9 11V6a3 3 0 0 1 6 0v5",
+    help: "M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0 M12 17v.01 M12 13.5a1.5 1.5 0 0 1 1-1.5 2.6 2.6 0 1 0-3-4",
+    flag: "M5 5a5 5 0 0 1 7 0 5 5 0 0 0 7 0v9a5 5 0 0 1-7 0 5 5 0 0 0-7 0V5z M5 21v-7",
+    mountain: "M3 20h18L14 8l-3 5-2-3z M14 8l1.5-2.5L17 8",
+  };
+  const STAR_D = "M12 17.75l-6.172 3.245 1.179-6.873-5-4.867 6.9-1l3.086-6.253 3.086 6.253 6.9 1-5 4.867 1.179 6.873z";
+  const PATHS = {};
+  let ICON_COL = C3.ink;
+  function drawIcon(n, x, y, size = 13, col = ICON_COL) {
+    if (n === "star" || n === "star_off") { star3(x + size / 2, y + size / 2, size * 0.55, n === "star"); return; }
+    const d = ICON_D[n];
+    if (!d) return;
+    const p = PATHS[n] || (PATHS[n] = new Path2D(d));
+    ctx.save(); ctx.translate(x, y); ctx.scale(size / 24, size / 24);
+    ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = col; ctx.stroke(p);
+    ctx.restore();
+  }
+  function star3(cx, cy, r, on) {
+    const p = PATHS._star || (PATHS._star = new Path2D(STAR_D));
+    ctx.save(); ctx.translate(cx - r, cy - r); ctx.scale(r / 12, r / 12);
+    ctx.fillStyle = on ? "#F2B64B" : "rgba(30,58,43,0.18)"; ctx.fill(p);
+    ctx.lineWidth = 1.4; ctx.lineJoin = "round"; ctx.strokeStyle = on ? "#B9781C" : "rgba(30,58,43,0.25)"; ctx.stroke(p);
+    ctx.restore();
+  }
+
+  // ---------- buttons and panels
+  const SKIN3 = {
+    btn_green: [C3.acc, C3.acce, C3.white], btn_green_down: [C3.acc, C3.acce, C3.white], btn_red: [C3.red, C3.redE, C3.white],
+    btn_gold: [C3.amber, C3.amberE, "#3A2A10"], btn_stone: [C3.stone, C3.stoneE, C3.muted], btn_pink: [C3.white, C3.edge, C3.ink],
+  };
+  function button3(x, y, w, h, label, on, opt) {
+    const skin = opt.skin || "btn_green";
+    const [fill, edge, ink] = SKIN3[skin] || [C3.surf, C3.edge, C3.ink];
+    const pressed = st.press && st.press.x >= x && st.press.x <= x + w && st.press.y >= y && st.press.y <= y + h;
+    const d = Math.max(2, Math.min(4, h * 0.11)), r = Math.min(9, h * 0.36), py = pressed ? d * 0.7 : 0;
+    fillRR(x, y + d, w, h - d, r, edge);
+    fillRR(x, y + py, w, h - d, r, fill);
+    const cy = y + py + (h - d) / 2, size = opt.size || 8;
+    ICON_COL = ink;
+    if (opt.icon) {
+      const iw = Math.min(14, h - d - 6);
+      if (label) {
+        setFont(size);
+        const tw = ctx.measureText(label).width;
+        const sx = x + w / 2 - (tw + iw + 4) / 2;
+        drawIcon(opt.icon.slice(2), sx, cy - iw / 2, iw, ink);
+        text(label, sx + iw + 4 + tw / 2, cy, size, ink, "center", null);
+      } else drawIcon(opt.icon.slice(2), x + w / 2 - iw / 2, cy - iw / 2, iw, ink);
+    } else if (label) text(label, x + w / 2, cy, size, ink, "center", null);
+    ICON_COL = C3.ink;
+    st.buttons.push({ x, y, w, h, on, hold: opt.hold });
+  }
+  function panel3(x, y, w, h) {
+    ctx.save();
+    ctx.shadowColor = "rgba(10,25,15,0.35)"; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
+    fillRR(x, y + 3, w, h, 14, C3.edge);
+    ctx.restore();
+    fillRR(x, y, w, h, 14, C3.surf);
+  }
+  function nine3(name, x, y, w, h) {
+    if (name === "panel" || name === "panel_hud") panel3(x, y, w, h);
+    else if (name === "ui_bar_empty") fillRR(x, y + 3, w, h - 6, (h - 6) / 2, "#D3DDC7");
+    else if (name === "ui_bar_full") fillRR(x, y + 3, w, h - 6, (h - 6) / 2, C3.acc);
+    else if (name === "ui_sign" || name === "ui_sign_small") fillRR(x, y, w, h, h / 2, "rgba(30,58,43,0.82)");
+    else if (name === "btn_plate") fillRR(x, y, w, h, Math.min(h / 2, 9), C3.surf);
+    else { const [f, e] = SKIN3[name] || [C3.surf, C3.edge]; fillRR(x, y + 2, w, h - 2, 8, e); fillRR(x, y, w, h - 2, 8, f); }
+  }
+  function pill(x, y, w, h, col = "rgba(30,58,43,0.82)") { fillRR(x, y, w, h, h / 2, col); }
+
+  // ---------- earth clods
+  const CLOD = {};
+  function clodCanvas(px, variant, kind) {
+    const key = px + "_" + variant + "_" + kind;
+    if (CLOD[key]) return CLOD[key];
+    const g = im3("tex_grass.jpg"), so = im3("tex_soil.jpg");
+    if (!g || !so) return null;
+    const c = document.createElement("canvas"); c.width = px; c.height = px;
+    const x = c.getContext("2d");
+    const x0 = px * 0.03, w = px * 0.94, y0 = px * 0.03, h = px * 0.94, top = px * 0.69, r = px * 0.17;
+    const ox = (variant * 61) % 120, oy = (variant * 37) % 120;
+    x.save(); rrc(x, x0, y0, w, h, r); x.clip();
+    // soil front
+    x.drawImage(so, ox, oy, 136, 50, x0, top - px * 0.04, w, y0 + h - top + px * 0.04);
+    const sg = x.createLinearGradient(0, top, 0, y0 + h);
+    sg.addColorStop(0, "rgba(20,10,5,0.05)"); sg.addColorStop(1, "rgba(20,10,5,0.45)");
+    x.fillStyle = sg; x.fillRect(x0, top, w, y0 + h - top);
+    // grass top
+    x.drawImage(g, ox, oy, 136, 100, x0, y0, w, top - y0);
+    const gg = x.createLinearGradient(0, y0, 0, top);
+    gg.addColorStop(0, "rgba(255,255,220,0.22)"); gg.addColorStop(0.7, "rgba(0,0,0,0)"); gg.addColorStop(1, "rgba(20,50,10,0.28)");
+    x.fillStyle = gg; x.fillRect(x0, y0, w, top - y0);
+    if (kind === "weed") { x.fillStyle = "rgba(70,60,20,0.35)"; x.fillRect(x0, y0, w, top - y0); }
+    if (kind === "stone") { x.fillStyle = "rgba(120,110,90,0.25)"; x.fillRect(x0, y0, w, top - y0); }
+    // grass lip hanging over the soil
+    x.fillStyle = "#4e8a2e";
+    x.beginPath();
+    const n = 9;
+    for (let i = 0; i <= n; i++) {
+      const fx = x0 + (w * i) / n, d = px * (0.03 + ((i * 7 + variant) % 3) * 0.018);
+      x.moveTo(fx - w / n * 0.55, top - 1); x.lineTo(fx, top + d); x.lineTo(fx + w / n * 0.55, top - 1);
+    }
+    x.fill();
+    x.fillStyle = "rgba(255,255,255,0.16)"; x.fillRect(x0, y0, w, px * 0.025);
+    x.restore();
+    CLOD[key] = c;
+    return c;
+  }
+  const PLANT_H = [0.62, 1.0, 1.08];
+  function cell3d(c, X, Y, s, alpha = 1) {
+    const kind = c.k === "plant" ? "plant" : c.k === "stone2" ? "stone" : c.k;
+    const variant = (Math.round(X * 3 + Y * 7) >>> 0) % 4;
+    const px = Math.max(8, Math.round(s * K));
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "rgba(10,20,10,0.28)";
+    rrc(ctx, X + s * 0.06, Y + s * 0.12, s * 0.94, s * 0.92, s * 0.18); ctx.fill();
+    const cl = clodCanvas(px, variant, kind);
+    if (cl) ctx.drawImage(cl, X, Y, s, s);
+    else { fillRR(X + 1, Y + 1, s - 2, s - 2, s * 0.18, "#6e9a46"); }
+    const cx = X + s / 2, base = Y + s * 0.5;
+    let sp = null, h = 0, wmax = s * 1.1, sway = 0;
+    if (c.k === "plant") { const sg = stageOf(c); sp = P3(`p3_${c.sp}_${sg}`); h = s * PLANT_H[sg]; sway = Math.sin(st.time * 1.8 + X * 0.21 + Y * 0.13) * 0.035; }
+    else if (c.k === "stone") { sp = P3("o3_stone"); h = s * 0.66; wmax = s * 0.86; }
+    else if (c.k === "stone2") { sp = P3("o3_stone2"); h = s * 0.6; wmax = s * 0.9; }
+    else if (c.k === "weed") { sp = P3("o3_weed"); h = s * 0.74; wmax = s * 0.92; sway = Math.sin(st.time * 1.3 + X) * 0.03; }
+    else if (c.k === "plastic") { sp = P3("o3_plastic"); h = s * 0.72; wmax = s * 0.8; }
+    else if (c.k === "mush") { sp = P3("o3_mush"); h = s * 0.7; wmax = s * 0.8; }
+    if (sp) {
+      let w = sp.naturalWidth / sp.naturalHeight * h;
+      if (w > wmax) { h *= wmax / w; w = wmax; }
+      const by = c.k === "plant" ? base + s * 0.08 : base + s * 0.14;
+      ctx.save(); ctx.translate(cx, by); if (sway) ctx.rotate(sway);
+      ctx.drawImage(sp, -w / 2, -h, w, h);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function plantIcon(sp, x, y, w, h) {
+    const im = P3(`p3_${sp}_1`);
+    if (!im) return;
+    const k = Math.min(w / im.naturalWidth, h / im.naturalHeight);
+    ctx.drawImage(im, x + (w - im.naturalWidth * k) / 2, y + (h - im.naturalHeight * k) / 2, im.naturalWidth * k, im.naturalHeight * k);
+  }
+  function spriteIn(name, x, y, w, h) {
+    const im = P3(name);
+    if (!im) return;
+    const k = Math.min(w / im.naturalWidth, h / im.naturalHeight);
+    ctx.drawImage(im, x + (w - im.naturalWidth * k) / 2, y + (h - im.naturalHeight * k) / 2, im.naturalWidth * k, im.naturalHeight * k);
+  }
+
+  // ---------- mountains, scenes and the place on the trail
+  function mountainOf(m) {
+    const base = TR.mountains[m % TR.mountains.length], lap = Math.floor(m / TR.mountains.length);
+    return { m, base, lap, mirror: lap % 2 === 1, tod: lap % 4 };
+  }
+  function mountainName(m) {
+    const M = mountainOf(m), nm = M.base[save.lang === "en" ? "en" : "sr"];
+    if (!M.lap) return nm;
+    const when = I18N[save.lang || "en"].tod[M.tod];
+    return M.lap < 4 ? `${nm} ${when}` : `${nm} ${when} · ${Math.floor(M.lap / 4) + 1}`;
+  }
+  function stopOf(k) {             // k levels done on a mountain -> scene and place along its trail
+    if (k >= 20) return { s: 5, u: 1 };
+    let s = 0;
+    while (k >= CUM[s + 1]) s++;
+    return { s, u: 0.26 + 0.74 * (k - CUM[s]) / TR.perScene[s] };
+  }
+  function sceneOfLevel(n) { const k = (n - 1) % 20; let s = 0; while (k >= CUM[s + 1]) s++; return { m: Math.floor((n - 1) / 20), s }; }
+  function sceneImg(M, s) { return im3(`scenes/${M.base.key}_${s + 1}.jpg`); }
+  // preload the scenes around the player's place
+  function warmScenes() {
+    const n = save.unlocked, { m, s } = sceneOfLevel(n), M = mountainOf(m);
+    for (let i = Math.max(0, s - 1); i <= Math.min(5, s + 1); i++) sceneImg(M, i);
+  }
+  function curve(pts) {
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      for (let tt = 0; tt < 1; tt += 0.1) {
+        const t2 = tt * tt, t3 = t2 * tt;
+        const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * tt + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+        out.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    const len = [0];
+    for (let i = 1; i < out.length; i++) len.push(len[i - 1] + Math.hypot(out[i][0] - out[i - 1][0], (out[i][1] - out[i - 1][1]) * 1.79));
+    return { out, len, total: len[len.length - 1] };
+  }
+  const CURVES = {};
+  function trailAt(M, s, u) {
+    const key = M.base.key + s;
+    const c = CURVES[key] || (CURVES[key] = curve(M.base.scenes[s]));
+    const L = Math.max(0, Math.min(1, u)) * c.total;
+    let i = 1;
+    while (i < c.len.length - 1 && c.len[i] < L) i++;
+    const k = (L - c.len[i - 1]) / Math.max(1e-6, c.len[i] - c.len[i - 1]);
+    let x = c.out[i - 1][0] + (c.out[i][0] - c.out[i - 1][0]) * k, y = c.out[i - 1][1] + (c.out[i][1] - c.out[i - 1][1]) * k;
+    const dx = (c.out[i][0] - c.out[i - 1][0]) * (M.mirror ? -1 : 1), dy = c.out[i][1] - c.out[i - 1][1];
+    if (M.mirror) x = 1 - x;
+    return { x, y, dx, dy };
+  }
+  const H0 = 0.17, H1 = [0.055, 0.085, 0.1, 0.085, 0.07, 0.1];
+  function heroH(M, s, y) {
+    const pts = M.base.scenes[s], y0 = pts[0][1], y1 = pts[pts.length - 1][1];
+    const k = Math.max(0, Math.min(1, (y0 - y) / Math.max(0.05, y0 - y1)));
+    return H0 * Math.pow(H1[s] / H0, k);
+  }
+  const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+  function camOf(img, p, u, focusY = 0.6) {
+    // zoom in a little as she walks deeper into the picture and keep her at focusY of the screen
+    const z = 1.18 + 0.35 * ease(Math.min(1, u));
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const sc = Math.max(W / iw, H / ih) * z, vw = W / sc, vh = H / sc;
+    let cx = iw * (0.5 + (p.x - 0.5) * 0.7), cy = p.y * ih - (focusY - 0.5) * vh;
+    cx = Math.min(iw - vw / 2, Math.max(vw / 2, cx)); cy = Math.min(ih - vh / 2, Math.max(vh / 2, cy));
+    return { sc, ox: W / 2 - cx * sc, oy: H / 2 - cy * sc };
+  }
+  // time of day for later laps: dawn, dusk, night
+  function todTint(tod, alpha = 1) {
+    if (!tod) return;
+    ctx.save(); ctx.globalAlpha = alpha;
+    if (tod === 1) { ctx.globalCompositeOperation = "soft-light"; ctx.fillStyle = "rgba(255,170,130,0.55)"; ctx.fillRect(0, 0, W, H); }
+    if (tod === 2) {
+      ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = "rgba(190,140,190,0.6)"; ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "screen"; const g = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+      g.addColorStop(0, "rgba(255,140,80,0.35)"); g.addColorStop(1, "rgba(255,140,80,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+    if (tod === 3) {
+      ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = "rgba(55,75,140,0.95)"; ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "source-over";
+      for (let i = 0; i < 46; i++) {
+        const x = (i * 97.31 % 1) * W, y = (i * 53.7 % 1) * H * 0.4, a = 0.4 + 0.6 * Math.abs(Math.sin(st.time * 1.3 + i));
+        ctx.fillStyle = `rgba(255,255,240,${a * 0.8})`; ctx.fillRect(x, y, 0.8, 0.8);
+      }
+      for (let i = 0; i < 14; i++) {          // fireflies
+        const x = W * (0.1 + 0.8 * ((i * 0.618) % 1)) + Math.sin(st.time * 0.7 + i) * 10, y = H * (0.45 + 0.45 * ((i * 0.37) % 1)) + Math.cos(st.time * 0.9 + i * 2) * 8;
+        const a = 0.5 + 0.5 * Math.sin(st.time * 3 + i * 1.7);
+        ctx.fillStyle = `rgba(220,255,140,${a * 0.9})`; ctx.beginPath(); ctx.arc(x, y, 1.1, 0, 7); ctx.fill();
+        ctx.fillStyle = `rgba(220,255,140,${a * 0.2})`; ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 7); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  function drawSceneImg(img, cam, mirror, alpha = 1) {
+    ctx.save(); ctx.globalAlpha = alpha;
+    if (mirror) { ctx.translate(W, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(img, mirror ? W - cam.ox - img.naturalWidth * cam.sc : cam.ox, cam.oy, img.naturalWidth * cam.sc, img.naturalHeight * cam.sc);
+    ctx.restore();
+  }
+  // play background: the scene of this level, blurred and dimmed, rendered once
+  const BGC = {};
+  function playBg(n) {
+    const { m, s } = n ? sceneOfLevel(n) : sceneOfLevel(save.unlocked);
+    const M = mountainOf(m), img = sceneImg(M, n ? s : 2);
+    const key = M.base.key + s + M.mirror + M.tod + "_" + canvas.width;
+    if (!BGC[key] && img) {
+      const c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height;
+      const x = c.getContext("2d");
+      const sc = Math.max(c.width / img.naturalWidth, c.height / img.naturalHeight);
+      x.filter = `blur(${Math.round(3 * K)}px)`;
+      if (M.mirror) { x.translate(c.width, 0); x.scale(-1, 1); }
+      x.drawImage(img, (c.width - img.naturalWidth * sc) / 2, 0, img.naturalWidth * sc, img.naturalHeight * sc);
+      x.setTransform(1, 0, 0, 1, 0, 0); x.filter = "none";
+      x.fillStyle = "rgba(12,28,18,0.22)"; x.fillRect(0, 0, c.width, c.height);
+      BGC[key] = c;
+    }
+    if (BGC[key]) { ctx.drawImage(BGC[key], 0, 0, W, H); todTint(M.tod, 0.85); }
+    else { ctx.fillStyle = "#3d5a3a"; ctx.fillRect(0, 0, W, H); }
+  }
+
+  // ---------- the heroine on the trail
+  function heroFrame(J, walking, dx, dy) {
+    if (walking) {
+      const f = Math.floor(st.time * 6) % 4;
+      if (Math.abs(dx) * 1.79 > Math.abs(dy) * 0.9) return { n: "h_qback_" + f, flip: dx > 0 };
+      return { n: "h_back_" + f, flip: false };
+    }
+    const idle = st.time - J.stopT;
+    if (J.summit) return { n: idle < 1.6 ? "h_win" : (Math.floor(idle * 1.4) % 3 === 0 ? "h_jump" : "h_win"), flip: false };
+    if (!J.turns) return { n: "h_back", flip: false };
+    const seq = ["h_back", "h_sideL", "h_q_front", "h_front"];
+    if (idle < 0.3) return { n: "h_back", flip: false };
+    const i = Math.min(3, Math.floor((idle - 0.3) / 0.13));
+    if (i < 3) return { n: seq[i], flip: false };
+    if (J.camp) return { n: Math.floor(idle / 1.6) % 2 ? "h_wave" : "h_front", flip: false };
+    return { n: "h_front", flip: false };
+  }
+  function drawHero(name, x, y, h, flip, bob = 0) {
+    const im = P3(name);
+    if (!im) return;
+    const k = name === "h_win" || name === "h_jump" ? 1.05 : name === "h_wave" ? 0.94 : 1;
+    const hh = h * k * (im.naturalHeight / 560), w = im.naturalWidth * hh / im.naturalHeight;
+    ctx.fillStyle = "rgba(15,25,10,0.3)"; ctx.beginPath(); ctx.ellipse(x, y, h * 0.16, h * 0.04, 0, 0, 7); ctx.fill();
+    ctx.save(); ctx.translate(x, y - bob);
+    if (flip) ctx.scale(-1, 1);
+    const jump = name === "h_jump" ? Math.abs(Math.sin(st.time * 5)) * h * 0.08 : 0;
+    ctx.drawImage(im, -w / 2, -hh - jump, w, hh);
+    ctx.restore();
+  }
+  function confetti(t) {
+    for (let i = 0; i < 70; i++) {
+      const sx = (i * 97.3 % 1) * W, sp = 40 + (i * 37 % 40), y = ((t * sp + i * 41) % (H + 40)) - 20, x = sx + Math.sin(t * 2 + i) * 10;
+      ctx.fillStyle = ["#F2B64B", "#8FD16A", "#F6FAF1", "#E5812E", "#7DB2E6"][i % 5];
+      ctx.save(); ctx.translate(x, y); ctx.rotate(t * 3 + i); ctx.fillRect(-2, -1, 4, 2); ctx.restore();
+    }
+  }
+
+  // ---------- journey screen
+  function journeyView() {
+    const done = save.unlocked - 1;
+    let m = Math.floor(done / 20), k = done % 20;
+    if (done > 0 && k === 0 && (save.summitSeen || 0) < m) { m -= 1; k = 20; }
+    return { m, k };
+  }
+  function enterJourney(animate) {
+    const { m, k } = journeyView();
+    const to = stopOf(k), from = animate && k > 0 ? stopOf(k - 1) : to;
+    st.jr = { m, k, s: from.s, u: from.u, to, walk: animate && k > 0, fade: 0, prev: null, stopT: st.time, turns: k % 2 === 0, camp: false, summit: false, t0: st.time };
+    st.mode = "journey";
+    for (let i = 0; i < 6; i++) sceneImg(mountainOf(m), i);
+    if (!st.jr.walk) arrive();
+  }
+  function arrive() {
+    const J = st.jr;
+    J.walk = false; J.stopT = st.time;
+    J.camp = J.s === TR.camp && J.u > 0.05 && J.u < 0.99 || J.s === TR.camp && J.k === CUM[TR.camp];
+    J.summit = J.k >= 20;
+    J.turns = J.camp || J.summit || J.k % 2 === 0;
+    if (J.summit && !J.cheered) { J.cheered = true; A.sfx.chime(); }
+  }
+  function drawJourneyScene(J, dt, focusY = 0.6, ui = true) {
+    const M = mountainOf(J.m);
+    // advance the walk
+    let walking = false;
+    if (J.walk && J.fade <= 0) {
+      const target = J.to.s > J.s ? 1 : J.to.u;
+      const speed = 0.16;
+      J.u = Math.min(target, J.u + dt * speed);
+      walking = J.u < target;
+      if (!walking) {
+        if (J.to.s > J.s) { J.prev = { s: J.s, u: J.u }; J.s += 1; J.u = J.to.s === J.s ? J.to.u : 0.26; J.fade = 1; }
+        else arrive();
+      }
+    }
+    const img = sceneImg(M, J.s);
+    if (!img) { ctx.fillStyle = "#2c4a34"; ctx.fillRect(0, 0, W, H); return; }
+    const p = trailAt(M, J.s, J.u), cam = camOf(img, p, J.u, focusY);
+    drawSceneImg(img, cam, M.mirror);
+    todTint(M.tod);
+    const hx = cam.ox + p.x * img.naturalWidth * cam.sc, hy = cam.oy + p.y * img.naturalHeight * cam.sc;
+    const hh = heroH(M, J.s, p.y) * img.naturalHeight * cam.sc;
+    if (J.summit) {                          // flag planted beside her
+      const f = P3("flag_" + (Math.floor(st.time * 6) % 4));
+      if (f) { const fh = hh * 0.9, fw = f.naturalWidth * fh / f.naturalHeight; ctx.drawImage(f, hx + hh * 0.18, hy - fh, fw, fh); }
+    }
+    const fr = heroFrame(J, walking && J.fade <= 0, p.dx, p.dy);
+    drawHero(fr.n, hx, hy, hh, fr.flip, walking ? Math.abs(Math.sin(st.time * 6 * Math.PI / 2)) * hh * 0.012 : 0);
+    if (J.fade > 0) {                         // the previous scene zooms on and dissolves into this one
+      J.fade = Math.max(0, J.fade - dt / 1.1);
+      const pimg = sceneImg(M, J.prev.s);
+      if (pimg) {
+        const pp = trailAt(M, J.prev.s, 1), pc = camOf(pimg, pp, 1, focusY);
+        ctx.save(); const z = 1 + (1 - J.fade) * 0.3; ctx.translate(W / 2, H * 0.45); ctx.scale(z, z); ctx.translate(-W / 2, -H * 0.45);
+        drawSceneImg(pimg, pc, M.mirror, J.fade); ctx.restore();
+      }
+      if (J.fade <= 0) { if (J.s === J.to.s && J.u >= J.to.u - 1e-4) arrive(); }
+    }
+    if (J.summit) confetti(st.time - J.stopT);
+  }
+  function drawJourney(dt) {
+    const J = st.jr;
+    drawJourneyScene(J, dt);
+    // top bar
+    button3(10, TOP + 4, 26, 26, "", () => { st.mode = "title"; }, { skin: "btn_wood", icon: "i_home" });
+    const nm = mountainName(J.m);
+    setFont(9); const tw = ctx.measureText(nm).width;
+    pill(W / 2 - tw / 2 - 12, TOP + 6, tw + 24, 22, "rgba(30,58,43,0.85)");
+    text(nm, W / 2, TOP + 17, 9, C3.surf, "center", null);
+    seedPill3(W - 64, TOP + 7);
+    // bottom card
+    const y0 = H - 92;
+    panel3(10, y0, W - 20, 82);
+    const sn = I18N[save.lang || "en"].scenes;
+    const s = J.s;
+    text(J.summit ? sn[5] : sn[s], 22, y0 + 15, 10, C3.ink, "left", null);
+    text(J.summit ? "20 / 20" : `${Math.min(20, J.k)} / 20`, W - 22, y0 + 15, 8, C3.muted, "right", null);
+    for (let i = 0; i < 6; i++) {
+      const dx = 22 + i * ((W - 44 - 10) / 5), on = i < s || J.summit, cur = i === s && !J.summit;
+      ctx.fillStyle = on ? C3.acc : cur ? C3.white : "rgba(30,58,43,0.16)";
+      ctx.beginPath(); ctx.arc(dx + 5, y0 + 31, cur ? 4.5 : 3.5, 0, 7); ctx.fill();
+      if (cur) { ctx.lineWidth = 2; ctx.strokeStyle = C3.acc; ctx.stroke(); }
+      if (i < 5) { ctx.fillStyle = on ? C3.acc : "rgba(30,58,43,0.16)"; ctx.fillRect(dx + 11, y0 + 30.2, (W - 44 - 10) / 5 - 12, 1.6); }
+    }
+    if (J.walk || J.fade > 0) {
+      text(t("onTheWay"), W / 2, y0 + 58, 9, C3.muted, "center", null);
+      st.buttons.push({ x: 0, y: 0, w: W, h: H, on: () => { J.walk = false; J.fade = 0; J.s = J.to.s; J.u = J.to.u; arrive(); } });
+    } else if (J.summit) {
+      button3(22, y0 + 42, W - 44, 30, t("newTrail"), () => { save.summitSeen = J.m + 1; persist(); enterJourney(false); }, { skin: "btn_green", size: 11, icon: "i_mountain" });
+    } else {
+      const n = save.unlocked;
+      button3(22, y0 + 42, W - 44, 30, `${t("play")} · ${t("level")} ${n}`, () => newGame(n), { skin: "btn_green", size: 11, icon: "i_play" });
+    }
+  }
+  function seedPill3(x, y) {
+    pill(x, y, 56, 20, C3.surf);
+    drawIcon("seed", x + 5, y + 3.5, 13, C3.amberE);
+    text(String(save.seeds), x + 34, y + 10, 9, C3.ink, "center", null);
+  }
+
+  // ---------- title
+  function drawTitle3d(dt) {
+    if (!st.jr || st.jr.m !== journeyView().m || st.jr.k !== journeyView().k) { const keep = st.mode; enterJourney(false); st.mode = keep; }
+    drawJourneyScene(st.jr, dt, 0.5);
+    const g = ctx.createLinearGradient(0, 0, 0, H * 0.35);
+    g.addColorStop(0, "rgba(12,28,18,0.5)"); g.addColorStop(1, "rgba(12,28,18,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H * 0.35);
+    seedPill3(10, TOP + 6);
+    button3(W - 36, TOP + 4, 26, 26, "", () => { st.settings = !st.settings; st.help = null; st.resetArm = 0; }, { skin: "btn_wood", icon: "i_gear" });
+    button3(W - 66, TOP + 4, 26, 26, "", () => openHelp(), { skin: "btn_wood", icon: "i_help" });
+    const bob = Math.sin(st.time * 1.2) * 1.2;
+    text("Hike &", 16, TOP + 52 + bob, 24, "#F6FAF1", "left", C3.ink);
+    text("Bloom", 16, TOP + 78 + bob, 27, "#9BD978", "left", C3.ink);
+    // bottom sheet
+    const y0 = H - 168;
+    panel3(8, y0, W - 16, 176);
+    const n = save.unlocked, { m, k } = journeyView();
+    text(`${t("level")} ${k >= 20 ? n - 1 : n}`, 20, y0 + 17, 14, C3.ink, "left", null);
+    text(`${mountainName(m)} · ${Math.min(20, k)}/20`, 20, y0 + 33, 8, C3.muted, "left", null);
+    button3(W - 82, y0 + 9, 66, 24, t("trail"), () => enterJourney(false), { skin: "btn_wood", size: 8, icon: "i_map" });
+    button3(16, y0 + 44, W - 104, 38, k >= 20 ? t("newTrail") : t("play"), () => {
+      if (k >= 20) enterJourney(false); else newGame(n);
+    }, { skin: "btn_green", size: 14, icon: "i_play" });
+    button3(W - 82, y0 + 44, 66, 38, t("zen"), () => newGame(0, { zen: true }), { skin: "btn_pink", size: 10, icon: "i_leaf" });
+    const tiles = [
+      ["tasks", t("tasks"), () => { st.modal = "tasks"; }, tasksReady()],
+      ["gift", t("bonus"), () => { st.modal = "bonus"; }, bonusReady()],
+      ["shop", t("shop"), () => { st.modal = "shop"; }, false],
+    ];
+    const tw = (W - 32 - 12) / 3;
+    tiles.forEach(([ic, label, on, dot], i) => {
+      const x = 16 + i * (tw + 6), y = y0 + 92;
+      button3(x, y, tw, 40, "", on, { skin: "btn_pink" });
+      drawIcon(ic, x + tw / 2 - 7, y + 5, 14, ic === "gift" ? C3.amberE : C3.acc);
+      text(label, x + tw / 2, y + 28, 7.5, C3.ink, "center", null);
+      if (dot) { ctx.fillStyle = C3.red; ctx.beginPath(); ctx.arc(x + tw - 7, y + 7, 3.4, 0, 7); ctx.fill(); }
+    });
+    if (!st.bonusShown && bonusReady() && !st.modal && !st.help && !st.settings) { st.bonusShown = true; st.modal = "bonus"; }
+  }
+
+  // ---------- play HUD
+  function drawHud3d() {
+    const lv = G.lv;
+    button3(8, TOP + 3, 26, 26, "", () => { st.paused = true; st.settings = true; }, { skin: "btn_wood", icon: "i_pause" });
+    button3(W - 34, TOP + 3, 26, 26, "", () => openHelp(), { skin: "btn_wood", icon: "i_help" });
+    const gx0 = 40, gw = W - 80;
+    fillRR(gx0, TOP + 3, gw, 24, 12, C3.surf);
+    if (G.zen) {
+      text(`${t("zen")} · ${t("best")} ${Math.max(save.zenBest, G.score)}`, W / 2, TOP + 15, 8, C3.ink, "center", null);
+    } else {
+      const n = lv.goals.length, cw = gw / n;
+      lv.goals.forEach((g, i) => {
+        const cx = gx0 + cw * i + cw / 2, done = G.prog[i] >= g.need, left = Math.max(0, g.need - G.prog[i]);
+        const iconX = cx - 15;
+        if (g.type === "bloom") plantIcon(g.sp, iconX - 2, TOP + 4, 18, 22);
+        else if (g.type === "score") star3(iconX + 7, TOP + 15, 7, true);
+        else spriteIn("o3_" + (g.type === "stone" ? "stone" : g.type), iconX - 2, TOP + 6, 18, 18);
+        if (done) { fillRR(cx + 2, TOP + 9, 12, 12, 6, C3.acc); drawIcon("check", cx + 3.5, TOP + 10.5, 9, C3.white); }
+        else text(String(left), cx + 9, TOP + 15.5, left > 999 ? 7 : 9, C3.ink, "center", null);
+      });
+    }
+    // second row: level, moves, score
+    const y = TOP + 36;
+    const lvTxt = G.zen ? t("zen") : `${t("level")} ${G.n}`;
+    setFont(8); const lw = ctx.measureText(lvTxt).width + 16;
+    pill(12, y + 8, lw, 18); text(lvTxt, 12 + lw / 2, y + 17, 8, C3.surf, "center", null);
+    const sc = String(G.score); setFont(8); const sw = ctx.measureText(sc).width + 16;
+    pill(W - 12 - sw, y + 8, sw, 18); text(sc, W - 12 - sw / 2, y + 17, 8, C3.surf, "center", null);
+    if (!G.zen) {
+      const low = G.moves <= 3 && Math.floor(st.time * 4) % 2;
+      ctx.fillStyle = C3.surf; ctx.beginPath(); ctx.arc(W / 2, y + 17, 20, 0, 7); ctx.fill();
+      ctx.fillStyle = C3.acce; ctx.beginPath(); ctx.arc(W / 2, y + 19, 17, 0, 7); ctx.fill();
+      ctx.fillStyle = low ? C3.red : C3.acc; ctx.beginPath(); ctx.arc(W / 2, y + 17, 17, 0, 7); ctx.fill();
+      text(String(G.moves), W / 2, y + 14, 14, C3.white, "center", null);
+      text(t("moves").toLowerCase(), W / 2, y + 26, 5.5, "#E6F4DF", "center", null);
+    } else {
+      text(`${t("streak")} ${G.streak}`, W / 2, y + 17, 8, C3.surf, "center", C3.ink);
+    }
+  }
+
+  // ---------- bees (vector)
+  function bee3(x, y, ph) {
+    const fl = Math.sin(st.time * 40 + ph) * 0.5 + 0.5;
+    ctx.fillStyle = `rgba(255,255,255,${0.55 + fl * 0.3})`;
+    ctx.beginPath(); ctx.ellipse(x - 1, y - 3, 2.2, 1.4 + fl, -0.5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + 1.5, y - 3, 2.2, 1.4 + fl, 0.5, 0, 7); ctx.fill();
+    ctx.fillStyle = "#F2B64B"; ctx.beginPath(); ctx.ellipse(x, y, 3.4, 2.4, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#2a2018"; ctx.fillRect(x - 1, y - 2.3, 1, 4.6); ctx.fillRect(x + 1.2, y - 2.1, 0.9, 4.2);
+  }
+
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    st.time += dt;
+    st.time += dt; st.dt = dt;
     st.idle += dt;
     st.buttons = [];
     ctx.setTransform(K, 0, 0, K, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
     updateFlies(dt);
     updateParts(dt);
     if (st.mode === "lang") drawLang();
@@ -1642,7 +2207,8 @@
       drawParts();
       if (st.modal) { st.buttons = []; drawModal(); drawParts(); }
       if (st.idle > 25 && !st.help && !st.settings && !st.modal) startDemo();
-    } else if (st.mode === "map") drawMap();
+    } else if (st.mode === "journey") { drawJourney(dt); if (st.modal) { st.buttons = []; drawModal(); } }
+    else if (st.mode === "map") enterJourney(false);
     else if (st.mode === "camp") { drawCamp(); drawParts(); }
     else if (st.mode === "play" && G) {
       if (st.demo) updateDemo(dt);
@@ -1660,5 +2226,5 @@
   });
 
   // test hooks (used by automated checks)
-  window.__pp = { st, get G() { return G; }, save, newGame, place, bestMove, startDemo, geo: () => ({ TOP, BX, BY, TY, BB, H }) };
+  window.__pp = { st, get G() { return G; }, save, enterJourney, newGame, place, bestMove, startDemo, geo: () => ({ TOP, BX, BY, TY, BB, H }) };
 })();
