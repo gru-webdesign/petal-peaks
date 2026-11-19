@@ -1655,7 +1655,7 @@
           ctx.drawImage(im, x, oy, w, im.naturalHeight * sc);
           const u = 0.15 + (T * 0.09) % 0.6, pp = trailAt(M, 1, u);
           const hx = x + pp.x * w, hy = oy + pp.y * im.naturalHeight * sc, hh = heroH(M, 1, pp.y) * im.naturalHeight * sc;
-          drawHero("h_back_" + (Math.floor(T * 6) % 4), hx, hy, hh, false);
+          drawHero("h_back_" + (Math.floor(T * 3.6) % 2), hx, hy, hh, false);
         }
         ctx.restore();
         return;
@@ -2010,11 +2010,18 @@
   }
 
   // ---------- the heroine on the trail
+  // walking: only the frames that face the same way, so she doesn't twist between back and profile.
+  // straight away from the camera: two true back views; along a slanted stretch: two back three-quarter views.
+  // the choice holds until the trail clearly turns (hysteresis), so she doesn't flicker between them.
   function heroFrame(J, walking, dx, dy) {
     if (walking) {
-      const f = Math.floor(st.time * 6) % 4;
-      if (Math.abs(dx) * 1.79 > Math.abs(dy) * 0.9) return { n: "h_qback_" + f, flip: dx > 0 };
-      return { n: "h_back_" + f, flip: false };
+      const side = Math.abs(dx) * 1.79 / Math.max(1e-6, Math.abs(dy) + Math.abs(dx) * 1.79);
+      if (J.gait !== "q" && side > 0.62) J.gait = "q";
+      else if (J.gait !== "b" && side < 0.42) J.gait = "b";
+      if (!J.gait) J.gait = side > 0.52 ? "q" : "b";
+      if (Math.abs(dx) > 1e-4) { const f = dx > 0; if (J.face === undefined || (f !== J.face && side > 0.35)) J.face = f; }
+      const step = Math.floor(st.time * 3.6) % 2;
+      return J.gait === "q" ? { n: "h_qback_" + step, flip: !!J.face } : { n: "h_back_" + step, flip: false };
     }
     const idle = st.time - J.stopT;
     if (J.summit) return { n: idle < 1.6 ? "h_win" : (Math.floor(idle * 1.4) % 3 === 0 ? "h_jump" : "h_win"), flip: false };
@@ -2026,16 +2033,31 @@
     if (J.camp) return { n: Math.floor(idle / 1.6) % 2 ? "h_wave" : "h_front", flip: false };
     return { n: "h_front", flip: false };
   }
+  const BODYX = {};
+  function bodyCenter(im, name) {          // horizontal centre of the hips/legs, so arms and hair don't shift her
+    if (BODYX[name] !== undefined) return BODYX[name];
+    try {
+      const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const x = c.getContext("2d"); x.drawImage(im, 0, 0);
+      const y0 = Math.round(c.height * 0.5), y1 = Math.round(c.height * 0.62);
+      const d = x.getImageData(0, y0, c.width, y1 - y0).data;
+      let sum = 0, n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 128) { sum += ((i - 3) / 4) % c.width; n++; }
+      BODYX[name] = n ? sum / n / c.width : 0.5;
+    } catch (e) { BODYX[name] = 0.5; }
+    return BODYX[name];
+  }
   function drawHero(name, x, y, h, flip, bob = 0) {
     const im = P3(name);
     if (!im) return;
     const k = name === "h_win" || name === "h_jump" ? 1.05 : name === "h_wave" ? 0.94 : 1;
     const hh = h * k * (im.naturalHeight / 560), w = im.naturalWidth * hh / im.naturalHeight;
+    const bx = bodyCenter(im, name) * w;
     ctx.fillStyle = "rgba(15,25,10,0.3)"; ctx.beginPath(); ctx.ellipse(x, y, h * 0.16, h * 0.04, 0, 0, 7); ctx.fill();
     ctx.save(); ctx.translate(x, y - bob);
     if (flip) ctx.scale(-1, 1);
     const jump = name === "h_jump" ? Math.abs(Math.sin(st.time * 5)) * h * 0.08 : 0;
-    ctx.drawImage(im, -w / 2, -hh - jump, w, hh);
+    ctx.drawImage(im, -bx, -hh - jump, w, hh);
     ctx.restore();
   }
   function confetti(t) {
@@ -2075,11 +2097,11 @@
     let walking = false;
     if (J.walk && J.fade <= 0) {
       const target = J.to.s > J.s ? 1 : J.to.u;
-      const speed = 0.16;
+      const speed = 0.12;
       J.u = Math.min(target, J.u + dt * speed);
       walking = J.u < target;
       if (!walking) {
-        if (J.to.s > J.s) { J.prev = { s: J.s, u: J.u }; J.s += 1; J.u = J.to.s === J.s ? J.to.u : 0.26; J.fade = 1; }
+        if (J.to.s > J.s) { J.prev = { s: J.s, u: J.u }; J.s += 1; J.gait = undefined; J.face = undefined; J.u = J.to.s === J.s ? J.to.u : 0.26; J.fade = 1; }
         else arrive();
       }
     }
@@ -2095,7 +2117,7 @@
       if (f) { const fh = hh * 0.9, fw = f.naturalWidth * fh / f.naturalHeight; ctx.drawImage(f, hx + hh * 0.18, hy - fh, fw, fh); }
     }
     const fr = heroFrame(J, walking && J.fade <= 0, p.dx, p.dy);
-    drawHero(fr.n, hx, hy, hh, fr.flip, walking ? Math.abs(Math.sin(st.time * 6 * Math.PI / 2)) * hh * 0.012 : 0);
+    drawHero(fr.n, hx, hy, hh, fr.flip, walking ? Math.abs(Math.sin(st.time * 3.6 * Math.PI)) * hh * 0.01 : 0);
     if (J.fade > 0) {                         // the previous scene zooms on and dissolves into this one
       J.fade = Math.max(0, J.fade - dt / 1.1);
       const pimg = sceneImg(M, J.prev.s);
