@@ -3,7 +3,7 @@ import os, sys
 import numpy as np
 from PIL import Image
 sys.path.insert(0, os.path.dirname(__file__))
-from cut3d import key, parts, crop, fit
+from cut3d import key, key_green, parts, crop, fit
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "art", "src")
@@ -60,6 +60,31 @@ def hero():
     save(fit(brownify(crop(c, flat[3])), h=HERO), "h_look")
 
 
+def hero_green():
+    """Matching walk cycles, climbing with poles, small scenes and reactions (green sheets)."""
+    ref = None
+    def sheet(name):
+        a = key_green(os.path.join(SRC, name)); return a, [p for r in parts(a) for p in r]
+    a, ps = sheet("hero_back_g.jpg")
+    k = HERO / crop(a, ps[1]).height
+    sc = lambda im: im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+    for i, p in enumerate(ps[:4]): save(sc(crop(a, p)), f"h_back_{i}")
+    for nm, prefix in (("hero_qback_g.jpg", "h_qback_"), ("hero_climb_g.jpg", "h_climb_")):
+        a, ps = sheet(nm)
+        hmax = max(crop(a, p).height for p in ps[:4])
+        kk = HERO * (1.0 if prefix == "h_qback_" else 1.02) / hmax
+        for i, p in enumerate(ps[:4]):
+            im = crop(a, p); save(im.resize((round(im.width * kk), round(im.height * kk)), Image.LANCZOS), f"{prefix}{i}")
+    a, ps = sheet("hero_scenes_g.jpg")
+    hs = [crop(a, p) for p in ps[:4]]
+    kk = HERO / hs[1].height
+    for im, n in zip(hs, ["h_mug", "h_wipe", "h_photo", "h_yawn"]):
+        save(im.resize((round(im.width * kk), round(im.height * kk)), Image.LANCZOS), n)
+    a, ps = sheet("hero_faces_g.jpg")
+    for im, n in zip([crop(a, p) for p in ps[:6]], ["happy", "wow", "think", "worry", "relief", "wink"]):
+        save(fit(im, h=300), "f_" + n)
+
+
 def plants():
     for sheet, a_sp, b_sp in SPECIES:
         s = key(os.path.join(SRC, sheet + ".jpg"), **({"near": 38, "fringe": 50, "despill": False} if "cosmos" in sheet else {})); rows = parts(s)
@@ -107,5 +132,5 @@ def scenes():
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    hero(); plants(); textures(); scenes()
+    hero(); hero_green(); plants(); textures(); scenes()
     print("3d imported")

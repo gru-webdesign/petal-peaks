@@ -417,7 +417,7 @@
     }
     G.tray[slot] = null;
     G.placed++;
-    if (G.moves !== Infinity) G.moves--;
+    if (G.moves !== Infinity) { G.moves--; if (G.moves === 3) react("worry"); }
     A.sfx.place(); vib(8);
     // everything else grows a little
     for (let i = 0; i < 81; i++) {
@@ -475,6 +475,7 @@
     for (const k of cells) { sx += cellX(k % 9) + 12; sy += cellY(Math.floor(k / 9)) + 12; }
     sx /= cells.size; sy /= cells.size;
     float(sx, sy, "+" + gained, COL.gold, lines > 1 ? 12 : 10);
+    if (lines > 1) react("happy");
     if (lines > 1) { float(sx, sy - 14, `${t("combo")} ×${mult}`, COL.pink, 10); A.sfx.combo(Math.min(3, lines)); st.shake = Math.min(1, 0.3 * lines); vib([10, 30, 10]); }
     else vib(15);
     // bees come to pollinate
@@ -490,9 +491,11 @@
     const plants = [];
     for (let i = 0; i < 81; i++) if (G.board[i] && G.board[i].k === "plant" && stageOf(G.board[i]) < 2) plants.push(i);
     const target = plants.length ? plants[Math.floor(Math.random() * plants.length)] : -1;
+    if (!st.react) react("wow");
     st.bees.push({ x: sx, y: sy, target, t: 0, dur: 0.9 + Math.random() * 0.5, ph: Math.random() * 6, done: false, leave: false });
   }
   function rain() {
+    react("wow");
     A.sfx.rain();
     task("rain");
     st.drops = [];
@@ -550,6 +553,7 @@
 
   // undo the last move (deep breath)
   function deepBreath() {
+    react("relief");
     if (!G || G.zen && !G.history) { toast(t("breatheNone")); return; }
     if (!G.history) { toast(t("breatheNone")); return; }
     if (G.breathUsed) {
@@ -1316,6 +1320,7 @@
     if (st.demo) {
       text(t("demo"), W / 2, BB + 38 > H - 6 ? H - 8 : BB + 38, 8, COL.gold);
     }
+    drawReact(dt);
     if (G.over) drawOver(dt);
     if (st.modal) { st.buttons = []; drawModal(); drawParts(); }
   }
@@ -2016,24 +2021,33 @@
   // the choice holds until the trail clearly turns (hysteresis), so she doesn't flicker between them.
   function heroFrame(J, walking, dx, dy) {
     if (walking) {
+      const step = Math.floor(st.time * 5.2) % 4;
+      if (J.s === 4) return { n: "h_climb_" + step, flip: false };       // the ascent: trekking poles
       const side = Math.abs(dx) * 1.79 / Math.max(1e-6, Math.abs(dy) + Math.abs(dx) * 1.79);
       if (J.gait !== "q" && side > 0.62) J.gait = "q";
       else if (J.gait !== "b" && side < 0.42) J.gait = "b";
       if (!J.gait) J.gait = side > 0.52 ? "q" : "b";
       if (Math.abs(dx) > 1e-4) { const f = dx > 0; if (J.face === undefined || (f !== J.face && side > 0.35)) J.face = f; }
-      const step = Math.floor(st.time * 3.6) % 2;
-      return J.gait === "q" ? { n: "h_qback_" + step, flip: !!J.face } : { n: "h_back_" + step, flip: false };
+      return J.gait === "q" ? { n: "h_qback_" + step, flip: !J.face } : { n: "h_back_" + step, flip: false };
     }
-    const idle = st.time - J.stopT;
-    if (J.summit) return { n: idle < 1.6 ? "h_win" : (Math.floor(idle * 1.4) % 3 === 0 ? "h_jump" : "h_win"), flip: false };
-    if (!J.turns) return { n: "h_back", flip: false };
+    const idle = st.time - J.stopT, M = mountainOf(J.m);
+    if (J.summit) {                                   // cheer, jump, then a photo of the view
+      if (idle < 1.6) return { n: "h_win", flip: false };
+      const c = Math.floor((idle - 1.6) / 2.4) % 3;
+      return { n: ["h_jump", "h_photo", "h_win"][c], flip: false };
+    }
+    if (!J.turns) return { n: J.s === 4 && idle > 0.6 ? "h_wipe" : "h_back", flip: J.s === 4 && idle > 0.6 && !J.face };
     const seq = ["h_back", "h_sideL", "h_q_front", "h_front"];
     if (idle < 0.3) return { n: "h_back", flip: false };
     const i = Math.min(3, Math.floor((idle - 0.3) / 0.13));
     if (i < 3) return { n: seq[i], flip: false };
-    if (J.camp) return { n: Math.floor(idle / 1.6) % 2 ? "h_wave" : "h_front", flip: false };
-    return { n: "h_front", flip: false };
+    const late = idle - 0.7, slot = Math.floor(late / 2.6);
+    if (J.camp) return { n: slot % 3 === 1 ? "h_wave" : slot % 3 === 2 ? "h_mug" : "h_front", flip: false };
+    if (M.tod === 3 && slot % 3 === 1) return { n: "h_yawn", flip: false };
+    if (J.s === 4 && slot % 2 === 1) return { n: "h_wipe", flip: false };
+    return { n: slot % 4 === 2 ? "h_wave" : "h_front", flip: false };
   }
+
   // every pose is measured once: the horizontal centre of the hips and the height from the top of the head
   // to the soles, taken in a narrow column over the body, so raised arms or a jump don't change her size
   const BODY = {};
@@ -2058,8 +2072,8 @@
   function drawHero(name, x, y, h, flip, bob = 0) {
     const im = P3(name);
     if (!im) return;
-    const b = bodyOf(im, name), sit = name === "h_sit" || name === "h_in" || name === "h_out";
-    const target = sit ? h * 0.62 : h;                  // seated poses are shorter on purpose
+    const b = bodyOf(im, name), sit = name === "h_sit" || name === "h_in" || name === "h_out" || name === "h_mug";
+    const target = sit ? h * (name === "h_mug" ? 0.9 : 0.62) : h;                  // seated poses are shorter on purpose
     const hh = target / (b.bot - b.top), w = im.naturalWidth * hh / im.naturalHeight;
     const bx = b.cx * w;
     ctx.fillStyle = "rgba(15,25,10,0.3)"; ctx.beginPath(); ctx.ellipse(x, y, h * 0.16, h * 0.04, 0, 0, 7); ctx.fill();
@@ -2257,6 +2271,30 @@
     } else {
       text(`${t("streak")} ${G.streak}`, W / 2, y + 17, 8, C3.surf, "center", C3.ink);
     }
+  }
+
+  // ---------- the heroine reacts in the corner during play
+  function react(f) { if (!st.demo) st.react = { f, t: 0 }; }
+  function drawReact(dt) {
+    if (!G || G.over || st.demo) return;
+    if (!st.react && st.idle > 12 && !G.thought) { G.thought = true; react("think"); }
+    const R = st.react;
+    if (!R) return;
+    R.t += dt;
+    const D = 2.2;
+    if (R.t > D) { st.react = null; return; }
+    const im = P3("f_" + R.f);
+    if (!im) return;
+    const inn = Math.min(1, R.t / 0.25), out = Math.max(0, (R.t - (D - 0.3)) / 0.3);
+    const k = 1 - Math.pow(1 - inn, 3) - out;
+    const r = 30, cx = 10 + r, cy = TY - r + 6 + (1 - k) * 24;
+    ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, k * 1.4));
+    ctx.fillStyle = C3.edge; ctx.beginPath(); ctx.arc(cx, cy + 2, r, 0, 7); ctx.fill();
+    ctx.fillStyle = C3.surf; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, r - 2, 0, 7); ctx.clip();
+    const h = r * 3.3, w = im.naturalWidth * h / im.naturalHeight;   // head and shoulders fill the circle
+    ctx.drawImage(im, cx - w / 2, cy - r * 1.05, w, h);
+    ctx.restore();
   }
 
   // ---------- bees (vector)

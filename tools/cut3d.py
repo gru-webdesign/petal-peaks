@@ -67,3 +67,16 @@ def crop(rgba, part, pad=4, fill=False, erode=2):
 def fit(im, h=None, w=None):
     k = min(h / im.height if h else 9, w / im.width if w else 9)
     return im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
+
+
+def key_green(path):
+    """Bright green sheet: distance from the sampled background, plus green spill pulled out of the edges."""
+    a = np.array(Image.open(path).convert("RGB")).astype(float)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    bg = np.median(a[(g > 200) & (r < 90) & (b < 90)], axis=0)
+    d = np.sqrt(((a - bg) ** 2).sum(-1))
+    alpha = np.clip((d - 60) / 50, 0, 1)
+    alpha = np.where((g > r + 60) & (g > b + 60) & (g > 170), 0, alpha)
+    spill = np.clip(g - np.maximum(r, b) - 25, 0, None) * (1 - alpha * 0.5)
+    a[..., 1] -= spill * 0.8
+    return np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
