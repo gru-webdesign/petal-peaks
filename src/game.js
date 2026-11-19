@@ -179,6 +179,7 @@
     if (name.startsWith("i_")) { drawIcon(name.slice(2), x, y + 1, w || 13); return; }
     if (name === "star_big" || name === "star_big_off") { star3(x + 16, y + 15, 15, name === "star_big"); return; }
     if (name.startsWith("m_")) { plantIcon(name.slice(2, -2), x, y, w || 16, h || 16); return; }
+    if (SOFT() && soft3dImg(name, x, y, w, h)) return;
     const im = IMG[name];
     if (!im || !im.complete || !im.naturalWidth) return;
     if (!w) { const k = HI.test(name) ? 2 : 1; w = im.naturalWidth / k; h = im.naturalHeight / k; }
@@ -221,11 +222,22 @@
     part(bx, by, mx, my, x + bx, y + by, iw, ih);
   }
   function imgH(name, x, y, h) {           // draw scaled to a given height
+    if (SOFT() && HERO3[name]) { const im = P3(HERO3[name]); if (im) ctx.drawImage(im, x, y, im.naturalWidth / im.naturalHeight * h, h); return; }
     const im = IMG[name];
     if (!im || !im.naturalWidth) return;
     ctx.drawImage(im, Math.round(x), Math.round(y), Math.round(im.naturalWidth / im.naturalHeight * h), h);
   }
-  function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+  const RECT3 = { "rgba(194,177,153,0.4)": "#FFFFFF", "rgba(194,177,153,0.45)": "#FFFFFF", "rgba(147,196,90,0.5)": "#DCEBCF", "rgba(147,196,90,0.45)": "#DCEBCF",
+    "#bf5a1d": "#3E8F2C", "#c2b199": "#C5D3B4" };
+  function rect(x, y, w, h, c) {
+    if (SOFT()) {
+      c = RECT3[c] || c;
+      if (w >= 10 && h >= 10 && w < W) { fillRR(x, y, w, h, Math.min(9, h / 3), c); return; }
+      if (w < 10 && h < 10 && RECT3.__dots !== 0) { fillRR(x, y, w, h, Math.min(w, h) / 2, c); return; }
+      ctx.fillStyle = c; ctx.fillRect(x, y, w, h); return;
+    }
+    ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  }
   function button(x, y, w, h, label, on, opt = {}) {
     if (SOFT()) { button3(x, y, w, h, label, on, opt); return; }
     const skin = opt.skin || "btn_green";
@@ -299,7 +311,12 @@
       const a = 1 - p.t / p.life;
       ctx.globalAlpha = Math.min(1, a * 1.5);
       ctx.fillStyle = p.c;
-      if (p.spark) { const s = a > 0.5 ? 2 : 1; ctx.fillRect(Math.round(p.x), Math.round(p.y), s, s); }
+      if (SOFT()) {
+        ctx.beginPath();
+        if (p.spark) ctx.arc(p.x, p.y, a > 0.5 ? 1.1 : 0.7, 0, 7);
+        else ctx.ellipse(p.x, p.y, Math.abs(Math.cos(p.rot)) * p.s * 0.6 + 0.5, p.s * 0.45, p.rot, 0, 7);
+        ctx.fill();
+      } else if (p.spark) { const s = a > 0.5 ? 2 : 1; ctx.fillRect(Math.round(p.x), Math.round(p.y), s, s); }
       else {
         const w = Math.abs(Math.cos(p.rot)) * p.s + 1;
         ctx.fillRect(Math.round(p.x - w / 2), Math.round(p.y), Math.round(w), p.s - 1 || 1);
@@ -1274,7 +1291,7 @@
     for (const d of st.drops) {
       d.y += d.v * dt; d.x -= d.v * 0.15 * dt;
       if (d.y > H) { d.y = -10; d.x = Math.random() * (W + 40); }
-      ctx.fillRect(Math.round(d.x), Math.round(d.y), 1, 4);
+      if (SOFT()) { ctx.fillRect(d.x, d.y, 0.6, 5); } else ctx.fillRect(Math.round(d.x), Math.round(d.y), 1, 4);
     }
   }
 
@@ -1328,14 +1345,15 @@
       const a = i * 0.45 + T * 0.25, r = 34 + k * 46 + 10 + (inhale ? 1 - (T * 0.6 + i * 0.13) % 1 : (T * 0.6 + i * 0.13) % 1) * 46;
       ctx.fillStyle = ["#f19cbd", "#f5d14f", "#b39ce3", "#fffaf0"][i % 4];
       ctx.globalAlpha = 0.8 * fade;
-      ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 2, 2);
+      ctx.beginPath(); ctx.ellipse(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1.6, 1, a, 0, 7); ctx.fill();
     }
     ctx.globalAlpha = fade;
     // the heroine in her yoga pose: she rises and widens a little as her chest fills
     // the heroine sits and breathes: chest relaxed, then lifted as it fills
-    const im = k > 0.45 ? IMG.hero_breathe_1 : IMG.hero_breathe_0;
+    const im = SOFT() ? P3(k > 0.45 ? "h_in" : "h_out") : (k > 0.45 ? IMG.hero_breathe_1 : IMG.hero_breathe_0);
     if (im && im.naturalWidth) {
-      const h = 84 * (1 + k * 0.03), w = im.naturalWidth / im.naturalHeight * 84 * (1 + k * 0.02);
+      const hb = SOFT() ? 92 : 84;
+      const h = hb * (1 + k * 0.03), w = im.naturalWidth / im.naturalHeight * hb * (1 + k * 0.02);
       ctx.drawImage(im, Math.round(cx - w / 2), Math.round(cy + 40 - h - k * 2), Math.round(w), Math.round(h));
     }
     ctx.globalAlpha = 1;
@@ -1537,9 +1555,10 @@
   }
 
   // mini board for the help videos: n×m cells at size s
-  function miniCell(x, y, s, v) { rect(x, y, s, s, v ? "#4a8442" : "#5a9a48"); rect(x, y, s, 1, "rgba(255,250,240,0.18)"); rect(x, y, 1, s, "rgba(255,250,240,0.18)"); }
+  function miniCell(x, y, s, v) {
+    if (SOFT()) { fillRR(x + 0.6, y + 0.6, s - 1.2, s - 1.2, s * 0.22, v ? "rgba(255,250,240,0.2)" : "rgba(255,250,240,0.12)"); return; } rect(x, y, s, s, v ? "#4a8442" : "#5a9a48"); rect(x, y, s, 1, "rgba(255,250,240,0.18)"); rect(x, y, 1, s, "rgba(255,250,240,0.18)"); }
   function helpVideo(page, x, y, w, h, T) {
-    rect(x, y, w, h, "#264a30");
+    if (SOFT()) fillRR(x, y, w, h, 8, "#2f5a3c"); else rect(x, y, w, h, "#264a30");
     const s = page === 0 ? 16 : 22;
     const gx = x + Math.round((w - (page === 0 ? 6 : 9) * s) / 2), gy = y + 8;
     const grid = (cols, rows) => { for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) miniCell(gx + i * s, gy + j * s, s, (Math.floor(i / 3) + Math.floor(j / 3)) % 2); };
@@ -1628,6 +1647,19 @@
       for (let i = 0; i < 3; i++) { img("i_seed", x + 40 + i * 60, y + 30 - ((T * 20 + i * 9) % 18)); text("+" + [15, 30, 150][i], x + 46 + i * 60, y + 56, 9, COL.gold); }
       img("i_tasks", x + 40, y + 78); img("i_gift", x + 100, y + 78); img("i_shop", x + 160, y + 78);
     } else if (page === 8) {
+      if (SOFT()) {            // a little loop of the journey: she walks the valley trail
+        const M = mountainOf(0), im = sceneImg(M, 1);
+        ctx.save(); rrc(ctx, x, y, w, h, 8); ctx.clip();
+        if (im) {
+          const sc = w / im.naturalWidth, oy = y - im.naturalHeight * sc * 0.45;
+          ctx.drawImage(im, x, oy, w, im.naturalHeight * sc);
+          const u = 0.15 + (T * 0.09) % 0.6, pp = trailAt(M, 1, u);
+          const hx = x + pp.x * w, hy = oy + pp.y * im.naturalHeight * sc, hh = heroH(M, 1, pp.y) * im.naturalHeight * sc;
+          drawHero("h_back_" + (Math.floor(T * 6) % 4), hx, hy, hh, false);
+        }
+        ctx.restore();
+        return;
+      }
       ctx.drawImage(IMG.bg_alpine, 0, 300, 504, Math.round(504 * h / w), x, y, w, h);
       for (let i = 0; i < 4; i++) img(i < 2 ? "sign_done" : i === 2 ? "sign_current" : "sign_locked", x + 16 + i * 44, y + h - 30 - i * 18);
       img("flag", x + w - 34, y + 8);
@@ -1637,6 +1669,21 @@
   }
 
   // ---------------------------------------------------------------- loop
+  // pixel-art names still used by older screens, drawn with the 3D art instead
+  const HERO3 = { hero_front: "h_front", hero_yoga: "h_out", hero_jump: "h_jump", hero_tired: "h_tired", hero_breathe_0: "h_out", hero_breathe_1: "h_in",
+    hero_walk_0: "h_walk_0", hero_walk_1: "h_walk_1", hero_walk_2: "h_walk_2", hero_walk_3: "h_walk_3" };
+  const OBST3 = { stone: "stone", stone_cracked: "stone2", plastic: "plastic", mushroom: "mush", weed_0: "weed", weed_1: "weed" };
+  function soft3dImg(name, x, y, w, h) {
+    let m;
+    if ((m = /^p_(\w+)_(\d)$/.exec(name))) { cell3d({ k: "plant", sp: m[1], age: [0, 3, 7][+m[2]] }, x, y, w || 16); return true; }
+    if (OBST3[name]) { cell3d({ k: OBST3[name] }, x, y, w || 16); return true; }
+    if (HERO3[name]) { spriteIn(HERO3[name], x, y, w || 40, h || 60); return true; }
+    if (name.startsWith("bee_")) { bee3(x + 5, y + 4, 0); return true; }
+    if (name === "flag") { spriteIn("flag_" + (Math.floor(st.time * 6) % 4), x, y, w || 16, h || 24); return true; }
+    if (name.startsWith("fly_") || name.startsWith("bg_")) return true;
+    return false;
+  }
+
   // ================================================================ soft 3D layer
   // Everything below draws the "animated film" look: textured earth clods with generated plants, vector UI,
   // and the journey up each mountain through its six scenes.

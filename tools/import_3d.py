@@ -66,14 +66,17 @@ def plants():
         for sp, row in zip((a_sp, b_sp), rows[-2:]):
             for st, p in enumerate(row[-3:]):
                 save(fit(crop(s, p, fill=(14 if sp == "cosmos" else 0)), h=[150, 230, 230][st], w=230), f"p3_{sp}_{st}")
-    # cosmos petals are the colour of that sheet's background, so until it is regenerated on green
-    # the cosmos is the daisy with pink petals
-    for st in range(3):
-        im = Image.open(os.path.join(OUT, f"p3_daisy_{st}.png")); a = np.asarray(im).astype(float)
-        r, g, b = a[..., 0], a[..., 1], a[..., 2]
-        white = (r > 175) & (g > 160) & (b > 150)
-        a[..., 0] = np.where(white, r * 0.97, r); a[..., 1] = np.where(white, g * 0.55, g); a[..., 2] = np.where(white, b * 0.78, b)
-        Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGBA").save(os.path.join(OUT, f"p3_cosmos_{st}.png"))
+    # cosmos comes from its own sheet on a bright green background
+    a = np.array(Image.open(os.path.join(SRC, "flowers_cosmos_green.jpg")).convert("RGB")).astype(float)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    bg = np.median(a[(g > 200) & (r < 80) & (b < 80)], axis=0)
+    d = np.sqrt(((a - bg) ** 2).sum(-1))
+    alpha = np.clip((d - 60) / 50, 0, 1)
+    spill = np.clip(g - np.maximum(r, b) - 40, 0, None) * (1 - alpha * 0.6)
+    a[..., 1] -= spill * 0.7
+    rgba = np.dstack([np.clip(a, 0, 255), alpha * 255]).astype(np.uint8)
+    for st, p in enumerate(parts(rgba)[0][-3:]):
+        save(fit(crop(rgba, p), h=[150, 230, 230][st], w=230), f"p3_cosmos_{st}")
     o = key(os.path.join(SRC, "obstacles3d.jpg")); rows = parts(o, gap=4)
     names = [["stone", "stone2", "weed"], ["plastic", "mush"]]
     for row, ns in zip(rows, names):
